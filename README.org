@@ -1,0 +1,39 @@
+* Ideas for orgmode clones
+
+
+I want to be able to clone an orgmode heading so that it can appear in different places in an outline. When I edit one of these headings, I want the changes to sync to all the other clones. It is a feature of Leo Editor, which I wish I could use, but it’s not in Emacs so it is dead to me. See, e.g., https://leoeditor.com/tutorial-pim.html. 
+
+
+I have browsed various emacs transclusion efforts. I found them either under or overwhelming. Most of the time, I was not smart enough to make sense of it. Many seem half-complete. I now add a new, less than half complete, idea to the mix. 
+
+
+Try this:
+
+Goto 
+
+1. Require both .el files
+2. Create a blank orgmode file
+3. Insert a header. Give it a headline, a code block, or something in its body. 
+4. =M-x org-transclude-create-clone=
+5. Select the header you just inserted (should popup an interface via org-goto). 
+6. Now you have a clone of the first header. Its headline and body should be read-only. 
+7. You want to edit a clone, put the cursor on the headline or body. Press enter. Now you can edit it. Press C-c C-c, and those changes will sync to the other clone. C-c C-k will abandon the changes. 
+
+
+You can clone a heading as many times as you want. If there are multiple clones, it does not matter which one you select as the source; each clone knows about all other clones so there is no “source” heading. 
+
+
+Quick notes:
+1. Only the headline (including todo and tags) and the body (i.e., the properties, planning line, and initial drawers) are cloned. This was an arbitrary decision.
+2. Child nodes are not part of the clone. The clone can be moved within the outline to different locations. 
+3. There are (fixable) problems with the precise location of the read-only text properties and the clone face overlay. For now, it gets the idea across so it serves its purpose. 
+4. All ideas herein were my first ideas and by no means all good. I think the fundamental design idea is sound, insofar as it does not rely on modification hooks or updating clones after each buffer change.
+5. No idea how this works across files, but I think it would work. Have not tested. 
+
+
+Posting in case anyone has feedback on this approach and overall idea. 
+
+
+
+
+
