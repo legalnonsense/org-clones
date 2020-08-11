@@ -17,7 +17,7 @@
 
 (face-spec-set 'org-clones-clone '((t (:background "black"))))
 
-(defvar org-clones--headline-re "^*+ "
+(defvar org-clones--headline-re outline-regexp
   "Org headline regexp.")
 
 (defcustom org-clones-clone-logbook nil
