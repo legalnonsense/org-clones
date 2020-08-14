@@ -14,12 +14,12 @@
   '((t (:background "black")))
   "Body of cloned nodes.")
 
-(face-spec-set 'org-clones-clone '((t (:background "black"))))
+(face-spec-set 'org-clones-clone '((t (:background "steel blue"))))
 
 (defvar org-clones--headline-re "^*+ " ; outline-regexp
   "Org headline regexp.")
 
-(defvar org-clones-empty-body-string "[empty clone body]"
+(defvar org-clones-empty-body-string "[empty clone body]\n"
   "Place holder inserted into clones with empty bodies.
 Can be anything other than whitespace.")
 
@@ -29,16 +29,14 @@ Can be anything other than whitespace.")
 (defvar org-clones-clone-prefix-string "◈ "
   "String prepended to the headline of a cloned node.")
 
-
 (defun org-clones--goto-body-end ()
   "Goto the end of the body of the current node, 
 and return the point."
-  (if (outline-next-heading)
-      (point)
-    (point-max)
-    (re-search-backward org-clones--not-whitespace-re
-			nil t)
-    (goto-char (match-end 0))))
+  (unless (outline-next-heading)
+    (goto-char (point-max)))
+  (re-search-backward org-clones--not-whitespace-re
+		      nil t)
+  (goto-char (match-end 0)))
 
 ;;; Macros
 
@@ -74,7 +72,13 @@ move back."
   "Goto the first point of the headline, after the
 leading stars."
   (org-back-to-heading t)
-  (re-search-forward org-clones--headline-re nil (point-at-eol))
+  (re-search-forward org-clones--headline-re (point-at-eol))
+  (if-let ((todo (org-get-todo-state)))
+      (re-search-forward todo (point-at-eol) t))
+  (if (re-search-forward org-clones--not-whitespace-re
+			 (point-at-eol)
+			 t)
+      (forward-char -1))
   (point))
 
 (defun org-clones--get-headline-start ()
@@ -87,8 +91,12 @@ the leading stars."
   "Goto the last point of the headline (i.e., before the
 leading stars."
   (org-back-to-heading t)
-  (unless (re-search-forward org-tag-re (point-at-eol) t)
+  (if (re-search-forward
+       (concat ":" org-tag-re ":") (point-at-eol) t)
+      (goto-char (1- (match-beginning 0)))
     (end-of-line))
+  (when (re-search-backward org-clones--not-whitespace-re)
+    (goto-char (match-end 0)))
   (point))
 
 (defun org-clones--get-headline-end ()
@@ -98,9 +106,13 @@ before the ellipsis."
     (org-clones--goto-headline-end)))
 
 (defun org-clones--delete-headline ()
-  "Replace the headline of the heading at point." 
-  (delete-region (org-clones--get-headline-start)
-		 (org-clones--get-headline-end)))
+  "Replace the headline of the heading at point."
+  (org-clones--inhibit-read-only
+   (unless (string=
+	    (plist-get (cadr (org-element-at-point)) :raw-value)
+	    "")
+     (delete-region (org-clones--get-headline-start)
+		    (org-clones--get-headline-end)))))
 
 (defun org-clones--get-headline-string ()
   "Get the full text of a headline at point, including
@@ -135,6 +147,8 @@ of the current node."
   "Go to the start of the body of the current node,
 and return the point."
   (org-end-of-meta-data t)
+  (when (re-search-backward org-clones--not-whitespace-re nil t)
+    (forward-char 2))
   (point))
 
 (defun org-clones--get-body-start ()
@@ -144,10 +158,13 @@ and return the point."
 (defun org-clones--replace-body (body)
   "Replace the body of the current node with
 BODY."
-  (save-excursion
-    (org-clones--delete-body)
-    (org-clones--goto-body-start)
-    (insert body
+  (org-back-to-heading)
+  (save-excursion 
+    (org-clones--delete-body))
+  (org-clones--goto-body-start)
+  (save-excursion 
+    (insert (or body
+		org-clones-empty-body-string)
 	    "\n")))
 
 (defun org-clones--parse-body ()
@@ -177,10 +194,11 @@ e.g. (:begin 1 :end 10 :contents-begin ...)."
   (cadar (org-clones--parse-body)))
 
 (defun org-clones--delete-body ()
-  (when-let* ((prop-list (org-clones--get-section-plist))
-	      (beg (plist-get prop-list :begin))
-	      (end (plist-get prop-list :end)))
-    (delete-region beg end)))
+  (org-clones--inhibit-read-only
+   (when-let* ((prop-list (org-clones--get-section-plist))
+	       (beg (plist-get prop-list :begin))
+	       (end (plist-get prop-list :end)))
+     (delete-region beg end))))
 
 ;;; Navigate functions 
 
@@ -212,7 +230,7 @@ and add the headline and body from the source to the clone."
       (org-clones--prompt-for-source-and-move)
       (org-clones--remove-clone-effects)
       (setq source-headline (org-clones--get-headline-string))
-      (setq source-body (org-clones--get-body))
+      (setq source-body (org-clones--get-body-as-string))
       (when (string= "" source-body)
 	(org-clones--insert-blank-body)
 	(setq source-body org-clones-empty-body-string))
@@ -250,8 +268,13 @@ place text properties and overlays in the cloned nodes."
   (interactive)
   (org-clones--remove-clone-effects)
   (let ((headline (org-clones--get-headline-string))
-	(body (or (org-clones--get-body)
-		  org-clones-empty-body-string)))
+	(body (if (string= "" (org-clones--get-body-as-string))
+		  org-clones-empty-body-string
+		(org-clones--get-body-as-string))))
+
+    ;; Replace the headline in the current node to ensure
+    ;; there aren't differences in white space between the nodes
+    (org-clones--replace-body body)
     (org-clones--put-clone-effects)
     (org-clones--iterate-over-clones
      (org-clones--remove-clone-effects)
@@ -409,4 +432,6 @@ of the current node."
 (provide 'org-clones)
 
 
-
+(defun org-clones--delete-buffer ()
+  (org-clones--inhibit-read-only
+   (erase-buffer)))
