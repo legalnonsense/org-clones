@@ -15,9 +15,9 @@ to its previous state, and turn off the minor mode."
   (interactive)
   (org-clones--replace-headline
    (car org-clones--current-state-of-node))
-  (org-clones--replace-node-body
+  (org-clones--replace-body
    (cdr org-clones--current-state-of-node))
-  (org-clones--put-clone-props)
+  (org-clones--put-clone-effects)
   (org-clones-edit-mode -1))
 
 (defun org-clones--complete-edit ()
@@ -39,8 +39,8 @@ node being edited."
       (progn
 	(setq org-clones--current-state-of-node
 	      (cons (org-clones--get-headline)
-		    (org-clones--get-node-body)))
-	(org-clones--remove-clone-props)
+		    (org-clones--get-body)))
+	(org-clones--remove-clone-effects)
 	(setq org-clones--previous-header-line header-line-format)
 	(setq header-line-format
 	      (concat
@@ -50,4 +50,4 @@ node being edited."
     (setq header-line-format
 	  org-clones--previous-header-line)))
 
-
+(provide 'org-clones-edit)
