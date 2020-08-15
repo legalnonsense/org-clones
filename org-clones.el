@@ -110,6 +110,9 @@ Can be anything other than whitespace."
   :group 'org-clones
   :type 'string)
 
+(defcustom org-clones-files (buffer-file-name)
+  "Files used to look for headings to clone.")
+
 ;;;; Variables
 
 (defvar org-clones--restore-state nil
@@ -449,12 +452,12 @@ node with a CLONED-WITH property."
 
 (defun org-clones--remove-all-clone-effects-in-buffer ()
   "Remove clone effects from all clones."
-  (let ((inhibit-read-only t))
-    (org-ql-select (current-buffer)
-      '(property "CLONED-WITH")
-      :action (lambda ()
-		(org-clones--iterate-over-clones
-		 (org-clones--remove-clone-effects))))))
+  (org-with-wide-buffer
+   (org-ql-select (current-buffer)
+     '(property "CLONED-WITH")
+     :action (lambda ()
+	       (org-clones--iterate-over-clones
+		(org-clones--remove-clone-effects))))))
 
 (defun org-clones--put-overlays ()
   "Put the clone overlay at the headline and body
@@ -509,8 +512,9 @@ node being edited."
 ;;;; Keymap
 
 (defvar org-clones-overlay-map
-  (let ((map (make-sparse-keymap)))
+  (let ((map (make-keymap)))
     (define-key map [remap self-insert-command] #'org-clones--prompt-before-edit)
+    (define-key map [remap newline] #'org-clones--prompt-before-edit)
     map)
   "Keymap for overlays put on clones.")
 

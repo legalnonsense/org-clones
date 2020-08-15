@@ -27,11 +27,12 @@ Quick notes:
 1. Only the headline (including todo and tags) and the body (i.e., the properties, planning line, and initial drawers) are cloned. This was an arbitrary decision.
 2. Child nodes are not part of the clone. The clone can be moved within the outline to different locations. 
 3. There are (fixable) problems with the precise location of the read-only text properties and the clone face overlay. For now, it gets the idea across so it serves its purpose. 
-4. All ideas herein were my first ideas and by no means all good. I think the fundamental design idea is sound, insofar as it does not rely on modification hooks or updating clones after each buffer change.
-5. No idea how this works across files, but I think it would work. Have not tested. 
+4. While there are questionable design and coding decisions, I think the fundamental design idea is sound, i.e., not relying on modification hooks and having a clone editing mode to abort or commit changes. 
+5. I think this design would work across files, but have not tested.
+6. If this is a good design, there are a lot of questions about how to best accomplish it. Org-ml looks like it might be a useful tool. See https://github.com/ndwarshuis/org-ml. 
 
 
-Posting in case anyone has feedback on this approach and overall idea. 
+Ideas or feedback, yea or nay, are welcome. 
 
 
 
