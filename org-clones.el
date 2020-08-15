@@ -110,8 +110,8 @@ Can be anything other than whitespace."
   :group 'org-clones
   :type 'string)
 
-(defcustom org-clones-files (buffer-file-name)
-  "Files used to look for headings to clone.")
+;; (defcustom org-clones-files (buffer-file-name)
+;;   "Files used to look for headings to clone.")
 
 ;;;; Variables
 
@@ -443,12 +443,12 @@ node with a CLONED-WITH property."
 	      (org-clones--iterate-over-clones
 	       (org-clones--put-clone-effects)))))
 
-(defun org-clones--remove-all-text-props-in-buffer ()
-  (org-clones--inhibit-read-only
-   (cl-loop for points being the intervals of (current-buffer) property 'org-clones
-	    if (get-text-property (car points) 'org-clones)
-	    do (remove-list-of-text-properties (car points) (cdr points)
-					       '(asdf face read-only)))))
+;; (defun org-clones--remove-all-text-props-in-buffer ()
+;;   (org-clones--inhibit-read-only
+;;    (cl-loop for points being the intervals of (current-buffer) property 'org-clones
+;; 	    if (get-text-property (car points) 'org-clones)
+;; 	    do (remove-list-of-text-properties (car points) (cdr points)
+;; 					       '(asdf face read-only)))))
 
 (defun org-clones--remove-all-clone-effects-in-buffer ()
   "Remove clone effects from all clones."
@@ -467,13 +467,15 @@ of the current node."
       'face 'org-clones-clone
       'keymap org-clones-overlay-map
       'before-string org-clones-clone-prefix-string
-      'evaporate t)
+      'evaporate t
+      'org-clones t)
 
   (ov (org-clones--get-body-start)
       (org-clones--get-body-end)
       'face 'org-clones-clone
       'keymap org-clones-overlay-map
-      'evaporate t))
+      'evaporate t
+      'org-clones t))
 
 (defun org-clones--edit-clone ()
   "Start edit mode."
