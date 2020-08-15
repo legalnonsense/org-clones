@@ -128,6 +128,15 @@ to restore if the edit is abandoned.")
 (defvar org-clones--not-whitespace-re "[^[:space:]]"
   "Regexp to match any non-whitespace charcter.")
 
+;;;; Keymaps
+
+(defvar org-clones-overlay-map
+  (let ((map (make-keymap)))
+    (define-key map [remap self-insert-command] #'org-clones--prompt-before-edit)
+    (define-key map [remap newline] #'org-clones--prompt-before-edit)
+    map)
+  "Keymap for overlays put on clones.")
+
 ;;;; Macros
 
 (defmacro org-clones--inhibit-read-only (&rest body)
@@ -227,7 +236,7 @@ TODO state, headline text, and tags."
 (defun org-clones--node-body-p ()
   "Does this node have a body (i.e., a section in org-element
 parlance?"
-  (org-clones--get-body-elements))
+  (org-clones--parse-body))
 
 ;;;; Body functions 
 
@@ -511,22 +520,14 @@ node being edited."
   (org-clones--update-clones)
   (org-clones-edit-mode -1))
 
-;;;; Keymap
-
-(defvar org-clones-overlay-map
-  (let ((map (make-keymap)))
-    (define-key map [remap self-insert-command] #'org-clones--prompt-before-edit)
-    (define-key map [remap newline] #'org-clones--prompt-before-edit)
-    map)
-  "Keymap for overlays put on clones.")
-
 ;;;; Commands
 
 ;;;###autoload 
-(defun org-clones-create-clone ()
+(defun org-clones-create-clone (&optional source-marker)
   "Insert a new headline, prompt the user for the source node,
 add clone properties to the source, add clone properties to the clone
-and add the headline and body from the source to the clone."
+and add the headline and body from the source to the clone.  
+SOURCE-POINT is a marker for the location of the source node"
   (interactive)
   (let (source-headline source-body source-id source-clone-list	clone-id)
 
@@ -536,7 +537,9 @@ and add the headline and body from the source to the clone."
     
     ;; At the source node...
     (save-excursion 
-      (org-clones--prompt-for-source-and-move)
+      (if source-point
+	  (goto-char source-marker)
+	(org-clones--prompt-for-source-and-move))
       (org-clones--remove-clone-effects)
       (setq source-headline (org-clones--get-headline-string))
       (setq source-body (org-clones--get-body-as-string))
@@ -591,8 +594,8 @@ and add the headline and body from the source to the clone."
   (if org-clones-edit-mode
       (progn
 	(setq org-clones--restore-state
-	      (cons (org-clones--get-headline)
-		    (org-clones--get-body)))
+	      (cons (org-clones--get-headline-string)
+		    (org-clones--get-body-as-string)))
 	(org-clones--remove-clone-effects)
 	(setq org-clones--previous-header-line header-line-format)
 	(setq header-line-format
