@@ -318,7 +318,7 @@ e.g. (:begin 1 :end 10 :contents-begin ...)."
 nil if there are none."
   (org-entry-get-multivalued-property
    (point)
-   "CLONED-WITH"))
+   "ORG-CLONES"))
 
 (defun org-clones--last-node-p ()
   "Is this the last node in the document?"
@@ -357,7 +357,7 @@ place text properties and overlays in the cloned nodes."
     (cl-loop for clone-id in clone-ids
 	     do (org-clones--with-point-at-id clone-id
 		  (org-entry-remove-from-multivalued-property
-		   (point) "CLONED-WITH" this-id)
+		   (point) "ORG-CLONES" this-id)
 		  (unless (org-clones--get-clone-ids)
 		    (org-clones--remove-clone-effects))))
     (message "This node is now independent of other clones. It will not be synced.")))
@@ -445,12 +445,14 @@ node."
 (defun org-clones--put-all-clone-effects-in-buffer ()
   "Clear all overlays and text properties that might have been set 
 previously. Place a new set of overlays and text properties at each
-node with a CLONED-WITH property."
-  (org-ql-select (current-buffer)
-    '(property "CLONED-WITH")
-    :action (lambda ()
-	      (org-clones--iterate-over-clones
-	       (org-clones--put-clone-effects)))))
+node with a ORG-CLONES property."
+  (setq org-ql-cache (make-hash-table :weakness 'key))
+  (org-with-wide-buffer
+   (org-ql-select (current-buffer)
+     '(property "ORG-CLONES")
+     :action (lambda ()
+	       (org-clones--iterate-over-clones
+		(org-clones--put-clone-effects))))))
 
 ;; (defun org-clones--remove-all-text-props-in-buffer ()
 ;;   (org-clones--inhibit-read-only
@@ -460,13 +462,14 @@ node with a CLONED-WITH property."
 ;; 					       '(asdf face read-only)))))
 
 (defun org-clones--remove-all-clone-effects-in-buffer ()
-  "Remove clone effects from all clones."
-  (org-with-wide-buffer
-   (org-ql-select (current-buffer)
-     '(property "CLONED-WITH")
-     :action (lambda ()
-	       (org-clones--iterate-over-clones
-		(org-clones--remove-clone-effects))))))
+"Remove clone effects from all clones."
+(setq org-ql-cache (make-hash-table :weakness 'key))
+(org-with-wide-buffer
+ (org-ql-select (current-buffer)
+   '(property "ORG-CLONES")
+   :action (lambda ()
+	     (org-clones--iterate-over-clones
+	      (org-clones--remove-clone-effects))))))
 
 (defun org-clones--put-overlays ()
   "Put the clone overlay at the headline and body
@@ -522,6 +525,10 @@ node being edited."
 
 ;;;; Commands
 
+(defun org-clones-create-clone-other-file ()
+  (interactive)
+  
+
 ;;;###autoload 
 (defun org-clones-create-clone (&optional source-marker)
   "Insert a new headline, prompt the user for the source node,
@@ -548,7 +555,7 @@ SOURCE-POINT is a marker for the location of the source node"
 	(setq source-body org-clones-empty-body-string))
       (setq source-id (org-id-get-create))
       (org-entry-add-to-multivalued-property (point)
-					     "CLONED-WITH"
+					     "ORG-CLONES"
 					     clone-id)
       (setq source-clone-list (org-clones--get-clone-ids))
       (org-clones--put-clone-effects))
@@ -560,12 +567,12 @@ SOURCE-POINT is a marker for the location of the source node"
 			   do
 			   (unless (string= clone (org-id-get-create))
 			     (org-entry-add-to-multivalued-property (point)
-								    "CLONED-WITH"
+								    "ORG-CLONES"
 								    clone)))))
     
     ;; At the new clone...
     (org-entry-add-to-multivalued-property (point)
-					   "CLONED-WITH"
+					   "ORG-CLONES"
 					   source-id)
     (org-clones--replace-headline source-headline)
     (org-clones--replace-body source-body)
