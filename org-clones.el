@@ -1,20 +1,91 @@
-;; org-clones.el --- Clone org headings -*- lexical-binding: t; -*-
+;;; org-clones.el --- Clone and sync Orgmode headings  -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2020 Jeff Filipovits
+
+;; Author: Jeff Filipovits <jrfilipovits@gmail.com>
+;; URL: http://example.com/package-name.el
+;; Version: 0.1-pre
+;; Package-Requires: ((emacs "25.2"))
+;; Keywords: org transclusion clones outline
+
+;; This file is not part of GNU Emacs.
+
+;;; Commentary:
+
+;; This package creates clones org headings. It uses the following
+;; terminology:
 
 ;; "Node" means an entry in an org outline
+;;
+;; "Headline" means the headline text of the entry, but does
+;;            not include the headline's todo state or tags
+;;
 ;; "Body" means everything after the headline, planning line,
 ;;        and property drawers until the next node.
-;;        It does not include whitespace between the text and
-;;        next node. 
+
+;; This package allows the user to clone a node, which duplicates
+;; the node's headline and body. An overlay is then placed over each clone.
+;; If the user attempts to edit the clone, they are prompted to either enter
+;; an edit-mode, which will sync all changes to other clones upon completion,
+;; or to unlink the clone. 
+
+;;;; Installation
+
+;;;;; Manual
+
+;; Install these required packages:
+
+;; + org-id
+;; + org-ml
+;; + ov
+
+;; Then put this file in your load-path, and put this in your init
+;; file:
+
+;; (require 'org-clones)
+
+;;;; Usage
+
+;; Run one of these commands:
+
+;; `org-clones-create-clone' when the point is on a node you wish to clone
+
+;;;; Tips
+
+;; + You can customize settings in the `org-clones' group.
+
+;;; License:
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Code:
+
+;;;; Requirements
 
 (require 'org)
 (require 'org-id)
 (require 'ov)
 (require 'org-ml)
 
+;;;; Faces
+
 (defface org-clones-clone
   '((t (:background "orchid")))
   "Body of cloned nodes."
   :group 'org-clones)
+
+;;;; Customization
 
 (defcustom org-clones-complete-edit-keybind "C-c C-c"
   "Keybinding to complete editing a clone. Must be a 
@@ -39,6 +110,8 @@ Can be anything other than whitespace."
   :group 'org-clones
   :type 'string)
 
+;;;; Variables
+
 (defvar org-clones--restore-state nil
   "When editing a clone, save the current headline and body
 to restore if the edit is abandoned.")
@@ -52,7 +125,7 @@ to restore if the edit is abandoned.")
 (defvar org-clones--not-whitespace-re "[^[:space:]]"
   "Regexp to match any non-whitespace charcter.")
 
-;;; Macros
+;;;; Macros
 
 (defmacro org-clones--inhibit-read-only (&rest body)
   "Quick substitute for (let ((inhibit-read-only t)) ...)."
@@ -79,7 +152,7 @@ move back."
 	 (goto-char it)
 	 ,@body))))
 
-;;; Headline functions
+;;;; Headline functions
 
 (defun org-clones--goto-headline-start ()
   "Goto the first point of the headline, after the
@@ -153,7 +226,7 @@ TODO state, headline text, and tags."
 parlance?"
   (org-clones--get-body-elements))
 
-;;; Body functions 
+;;;; Body functions 
 
 (defun org-clones--insert-blank-body ()
   "Insert `org-clones-empty-body-string' into the body 
@@ -226,7 +299,7 @@ e.g. (:begin 1 :end 10 :contents-begin ...)."
 	       (end (plist-get prop-list :end)))
      (delete-region beg end))))
 
-;;; Navigation functions 
+;;;; Navigation functions 
 
 (defun org-clones--get-clone-ids ()
   "Get the org-ids of this node's clones. Return
@@ -243,54 +316,6 @@ nil if there are none."
 (defun org-clones--prompt-for-source-and-move ()
   "Prompt user for a node and move to it."
   (org-goto))
-
-;;; Clone creation
-
-;;;###autoload 
-(defun org-clones-create-clone ()
-  "Insert a new headline, prompt the user for the source node,
-add clone properties to the source, add clone properties to the clone
-and add the headline and body from the source to the clone."
-  (interactive)
-  (let (source-headline source-body source-id source-clone-list	clone-id)
-
-    ;; Create the new heading, save the ID
-    (org-insert-heading-respect-content)
-    (setq clone-id (org-id-get-create))
-    
-    ;; At the source node...
-    (save-excursion 
-      (org-clones--prompt-for-source-and-move)
-      (org-clones--remove-clone-effects)
-      (setq source-headline (org-clones--get-headline-string))
-      (setq source-body (org-clones--get-body-as-string))
-      (when (string= "" source-body)
-	(org-clones--insert-blank-body)
-	(setq source-body org-clones-empty-body-string))
-      (setq source-id (org-id-get-create))
-      (org-entry-add-to-multivalued-property (point)
-					     "CLONED-WITH"
-					     clone-id)
-      (setq source-clone-list (org-clones--get-clone-ids))
-      (org-clones--put-clone-effects))
-
-    ;; For each clone from the source, add new clone id
-    (cl-loop for clone-id in source-clone-list
-	     do (org-clones--with-point-at-id clone-id
-		  (cl-loop for clone in source-clone-list
-			   do
-			   (unless (string= clone (org-id-get-create))
-			     (org-entry-add-to-multivalued-property (point)
-								    "CLONED-WITH"
-								    clone)))))
-    
-    ;; At the new clone...
-    (org-entry-add-to-multivalued-property (point)
-					   "CLONED-WITH"
-					   source-id)
-    (org-clones--replace-headline source-headline)
-    (org-clones--replace-body source-body)
-    (org-clones--put-clone-effects)))
 
 (defun org-clones--update-clones ()
   "Update all clones of the current node to match
@@ -447,32 +472,12 @@ of the current node."
       'keymap org-clones-overlay-map
       'evaporate t))
 
-;;; Interactive functions
-
 (defun org-clones--edit-clone ()
   "Start edit mode."
   (interactive)
   (org-clones-edit-mode 1))
 
-;;; Minor mode
-
-(setq org-clones-overlay-map
-      (let ((map (make-sparse-keymap)))
-	(define-key map [remap self-insert-command] #'org-clones--prompt-before-edit)
-	map))
-;;  "Keymap for overlays put on clones.")
-
-;;;###autoload
-(define-minor-mode org-clones-mode
-  "Org heading transclusion minor mode."
-  nil
-  " ORG-CLONES"
-  nil
-  (if org-clones-mode
-      (org-clones--put-all-clone-effects-in-buffer)
-    (org-clones--remove-all-clone-effects-in-buffer)))
-
-;;; Editing clones
+;;;; Editing clones
 
 (defun org-clones--prompt-before-edit ()
   "Ask the user if they want to edit the node
@@ -501,6 +506,74 @@ node being edited."
   (org-clones--update-clones)
   (org-clones-edit-mode -1))
 
+;;;; Keymap
+
+(defvar org-clones-overlay-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap self-insert-command] #'org-clones--prompt-before-edit)
+    map)
+  "Keymap for overlays put on clones.")
+
+;;;; Commands
+
+;;;###autoload 
+(defun org-clones-create-clone ()
+  "Insert a new headline, prompt the user for the source node,
+add clone properties to the source, add clone properties to the clone
+and add the headline and body from the source to the clone."
+  (interactive)
+  (let (source-headline source-body source-id source-clone-list	clone-id)
+
+    ;; Create the new heading, save the ID
+    (org-insert-heading-respect-content)
+    (setq clone-id (org-id-get-create))
+    
+    ;; At the source node...
+    (save-excursion 
+      (org-clones--prompt-for-source-and-move)
+      (org-clones--remove-clone-effects)
+      (setq source-headline (org-clones--get-headline-string))
+      (setq source-body (org-clones--get-body-as-string))
+      (when (string= "" source-body)
+	(org-clones--insert-blank-body)
+	(setq source-body org-clones-empty-body-string))
+      (setq source-id (org-id-get-create))
+      (org-entry-add-to-multivalued-property (point)
+					     "CLONED-WITH"
+					     clone-id)
+      (setq source-clone-list (org-clones--get-clone-ids))
+      (org-clones--put-clone-effects))
+
+    ;; For each clone from the source, add new clone id
+    (cl-loop for clone-id in source-clone-list
+	     do (org-clones--with-point-at-id clone-id
+		  (cl-loop for clone in source-clone-list
+			   do
+			   (unless (string= clone (org-id-get-create))
+			     (org-entry-add-to-multivalued-property (point)
+								    "CLONED-WITH"
+								    clone)))))
+    
+    ;; At the new clone...
+    (org-entry-add-to-multivalued-property (point)
+					   "CLONED-WITH"
+					   source-id)
+    (org-clones--replace-headline source-headline)
+    (org-clones--replace-body source-body)
+    (org-clones--put-clone-effects)))
+
+;;;; Minor modes
+
+;;;###autoload
+(define-minor-mode org-clones-mode
+  "Org heading transclusion minor mode."
+  nil
+  " ORG-CLONES"
+  nil
+  (if org-clones-mode
+      (org-clones--put-all-clone-effects-in-buffer)
+    (org-clones--remove-all-clone-effects-in-buffer)))
+
 (define-minor-mode org-clones-edit-mode
   "Mode to edit clones."
   nil
@@ -527,16 +600,20 @@ node being edited."
     (setq header-line-format
 	  org-clones--previous-header-line)))
 
-(provide 'org-clones)
-
-
-
-
-;;; Development functions
+;;;; Support
 
 (defun org-clones--delete-buffer ()
   (org-clones--inhibit-read-only
    (erase-buffer)))
+
+;;;; Footer
+
+(provide 'org-clones)
+
+;;; Org-clones.el ends here
+
+
+
 
 
 
