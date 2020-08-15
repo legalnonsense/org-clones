@@ -12,18 +12,30 @@
 (require 'org-ml)
 
 (defface org-clones-clone
-  '((t (:background "black")))
-  "Body of cloned nodes.")
-
-(face-spec-set 'org-clones-clone '((t (:background "steel blue"))))
+  '((t (:background "orchid")))
+  "Body of cloned nodes."
+  :group 'org-clones)
 
 (defcustom org-clones-complete-edit-keybind "C-c C-c"
-  "Keybinding to complete editing a clone."
+  "Keybinding to complete editing a clone. Must be a 
+string acceptable to the `kbd' function."
   :group 'org-clones
   :type 'string)
 
 (defcustom org-clones-discard-edit-keybind "C-c C-k"
-  "Keybinding to complete editing a clone."
+  "Keybinding to complete editing a clone. Must be a 
+string acceptable to the `kbd' function."
+  :group 'org-clones
+  :type 'string)
+
+(defcustom org-clones-clone-prefix-string "◈ "
+  "String prepended to the headline of a cloned node."
+  :group 'org-clones
+  :type 'string)
+
+(defcustom org-clones-empty-body-string "[empty clone body]\n"
+  "Place holder inserted into clones with empty bodies.
+Can be anything other than whitespace."
   :group 'org-clones
   :type 'string)
 
@@ -37,19 +49,13 @@ to restore if the edit is abandoned.")
 (defvar org-clones--headline-re "^*+ " ; outline-regexp
   "Org headline regexp.")
 
-(defvar org-clones-empty-body-string "[empty clone body]\n"
-  "Place holder inserted into clones with empty bodies.
-Can be anything other than whitespace.")
-
 (defvar org-clones--not-whitespace-re "[^[:space:]]"
   "Regexp to match any non-whitespace charcter.")
-
-(defvar org-clones-clone-prefix-string "◈ "
-  "String prepended to the headline of a cloned node.")
 
 ;;; Macros
 
 (defmacro org-clones--inhibit-read-only (&rest body)
+  "Quick substitute for (let ((inhibit-read-only t)) ...)."
   `(let ((inhibit-read-only t))
      ,@body))
 
@@ -135,7 +141,8 @@ TODO state, headline text, and tags."
 ;;     (insert headline)))
 
 (defun org-clones--replace-headline (headline)
-  (org-ml-update-this-headline* (org-ml-set-property :title `(,headline) it)))
+  (org-ml-update-this-headline*
+    (org-ml-set-property :title `(,headline) it)))
 
 (defun org-clones--get-body-end ()
   "Get the end point of the body of the current node."
