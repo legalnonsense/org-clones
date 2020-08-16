@@ -653,34 +653,46 @@ SOURCE-POINT is a marker for the location of the source node"
   (org-clones--inhibit-read-only
    (erase-buffer)))
 
-;;;; Footer
-
-(provide 'org-clones)
-
-;;; Org-clones.el ends here
-
-
 ;;; Development
 
-(org-clones--create-text-watcher
- watcher-1
- :enter ((message "entered"))
- :exit ((message "exited"))
- :compare-func ((buffer-substring 1 2))
- :change nil
- :no-change ((message "no change"))
- :start 1
- :end 10)
-
-(cl-defmacro org-clones--create-text-watcher (name &optional &key start end
+(cl-defmacro org-clones--create-text-watcher (name start end &optional &key
 						   enter exit compare-func
 						   change no-change disable
 						   other-props)
+  "NAME is the name used to create the underlying function and variable.
+
+Text properties will go from START to END.
+
+All other keys are optional:
+
+ENTER is a form executed when the cursor enters the text field.
+
+EXIT is a form executed when cursor exits the text field. 
+
+CHANGE is the form executed if there was a change of the text
+from START to END, comparing that text before and after
+the cursor leaves the field using `string='. 
+(See COMPARE-FUNC to customize this behavior.)
+
+NO-CHANGE is a form executed if there was no change to the text. 
+
+COMPARE-FUNC determines what text is stored for later comparison. 
+If nil (i.e., the default), it will store the `buffer-substring' 
+from START to END. 
+
+DISABLE removes all text properties set by the macro call. 
+
+OTHER-PROPS are other text properties to from START to END. They 
+will be removed if DISABLE is t.
+
+This marco will automatically turn `cursor-sensor-mode' on or off
+as appropriate."
+
   ;; Create the function and variable names for later use
   (let ((var-name
-	 (intern (concat "text-watcher-var-" (symbol-name name))))
+	 (intern (concat "org-clones--text-watcher-storage-" (symbol-name name))))
      	(function-name
-	 (intern (concat "text-watcher-func-" (symbol-name name)))))
+	 (intern (concat "org-clones--text-watcher-func-" (symbol-name name)))))
     `(progn
        ;; Create a unique storage variable
        (if (boundp ',var-name)
@@ -709,63 +721,60 @@ SOURCE-POINT is a marker for the location of the source node"
 			 ,var-name)
 		;; ...and run the appropriate forms
 		,@no-change
-	      ,@change))
-	   ;; If the value of entered-or-left is not entered or left,
-	   ;; there has been a catastrophe.
-	   (_ (error "Something went horribly wrong.")))
+	      ,@change))))
 
-	 ;; If we are disabling the function:
-	 (if ,disable
-	     (progn 
-	       ;; Remove the function from the function list...
-	       (put-text-property
-		,start
-		,end
-		'cursor-sensor-functions
-		;; (This removes the function from the cursor-sensor-functions
-		;; list while preserving other functions in the list)
-		(remq ',function-name
-		      (-list (get-text-property ,start
-						'cursor-sensor-functions))))
-	       ;; ...remove other text properties set by the user...
-	       (when ,other-props
-		 (remove-text-properties ,start ,end ',other-props))
-	       ;; ...and reset the value of var-name.
-	       (setq ,var-name nil))
-	   
-	   ;; Otherwise, we are enabling the function:
-	   ;; Put it in the cursor-sensor-function list
-	   ;; (unless it's there already)...
-	   (unless (memq ',function-name (get-text-property
-					  ,start
-					  'cursor-sensor-functions))
+       ;; If we are disabling the function:
+       (if ,disable
+	   (progn 
+	     ;; Remove the function from the function list...
 	     (put-text-property
 	      ,start
 	      ,end
 	      'cursor-sensor-functions
-	      (append (-list ',function-name) (get-text-property
-					       ,start
-					       'cursor-sensor-functions))))
-	   ;; ...and insert any other text properties supplied by the user.
-	   (when ,other-props
-	     (cl-loop for i from 0 to (1- (length ,other-props)) by 2
-		      do (put-text-property
-			  ,start
-			  ,end
-			  (nth i ,other-props)
-			  (nth (1+ i) ,other-props)))))
+	      ;; (This removes the function from the cursor-sensor-functions
+	      ;; list while keeping other functions in the list)
+	      (remq ',function-name
+		    (-list (get-text-property ,start
+					      'cursor-sensor-functions))))
+	     ;; ...remove other text properties set by the user...
+	     (when ',other-props
+	       (remove-text-properties ,start ,end ',other-props))
+	     ;; ...and reset the value of var-name.
+	     (setq ,var-name nil))
+	 
+	 ;; Otherwise, we are enabling the function:
+	 ;; Put it in the cursor-sensor-function list
+	 ;; (unless it's there already)...
+	 (unless (memq ',function-name (get-text-property
+					,start
+					'cursor-sensor-functions))
+	   (put-text-property
+	    ,start
+	    ,end
+	    'cursor-sensor-functions
+	    (append (-list ',function-name) (get-text-property
+					     ,start
+					     'cursor-sensor-functions))))
+	 ;; ...and add any other text properties supplied by the user.
+	 (when ',other-props
+	   (add-text-properties ,start ,end ',other-props)))
 
-	 ;; Should `cursor-sensor-mode' be turned on? 
-	 (if (save-excursion
-	       (save-restriction
-		 (widen)
-		 ;; Are there any cursor-sensor-function text properties
-		 ;; in the buffer?
-		 (next-single-property-change (point-min) 'cursor-sensor-functions)))
-	     ;; If so, enable cursor-sensor-mode...
-	     (cursor-sensor-mode 1)
-	   ;; ...otherwise, disable it. 
-	   (cursor-sensor-mode -1))))))
+       ;; Should `cursor-sensor-mode' be turned on? 
+       (if (save-excursion
+	     (save-restriction
+	       (widen)
+	       ;; Are there any cursor-sensor-function text properties
+	       ;; in the buffer?
+	       (next-single-property-change (point-min) 'cursor-sensor-functions)))
+	   ;; If so, enable cursor-sensor-mode...
+	   (cursor-sensor-mode 1)
+	 ;; ...otherwise, disable it. 
+	 (cursor-sensor-mode -1)))))
 
 
 
+;;;; Footer
+
+(provide 'org-clones)
+
+;;; Org-clones.el ends here
