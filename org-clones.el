@@ -106,18 +106,25 @@ string acceptable to the `kbd' function."
 
 (defcustom org-clones-empty-body-string "[empty clone body]\n"
   "Place holder inserted into clones with empty bodies.
-Can be anything other than whitespace."
+Can be any string other than whitespace."
   :group 'org-clones
   :type 'string)
 
-;; (defcustom org-clones-files (buffer-file-name)
-;;   "Files used to look for headings to clone.")
+(defcustom org-clones-empty-headling-string "[empty clone headline]"
+  "Place holder inserted into clones with empty headlines.
+Can be any string other than whitespace."
+  :group 'org-clones
+  :type 'string)
 
 ;;;; Variables
 
 (defvar org-clones--restore-state nil
   "When editing a clone, save the current headline and body
 to restore if the edit is abandoned.")
+
+(defvar org-clones--temp-marker nil
+  "Temporary storage for a marker for clone creation in 
+separate file.")
 
 (defvar org-clones--previous-header-line header-line-format
   "Holds the previous `header-line-format' value to restore later.")
@@ -130,12 +137,13 @@ to restore if the edit is abandoned.")
 
 ;;;; Keymaps
 
-(defvar org-clones-overlay-map
-  (let ((map (make-keymap)))
-    (define-key map [remap self-insert-command] #'org-clones--prompt-before-edit)
-    (define-key map [remap newline] #'org-clones--prompt-before-edit)
-    map)
-  "Keymap for overlays put on clones.")
+(setq org-clones-overlay-map
+      (let ((map (make-keymap)))
+	(suppress-keymap map)
+	(define-key map [remap self-insert-command] #'org-clones--prompt-before-edit)
+	(define-key map [remap newline] #'org-clones--prompt-before-edit)
+	map))
+      ;;"Keymap for overlays put on clones.")
 
 ;;;; Macros
 
@@ -425,10 +433,11 @@ of locking edits of the headline and body."
 of the current node."
   (ov-clear (org-clones--get-headline-start)
 	    (org-clones--get-headline-end)
-	    'face 'org-clones-clone)
-  (ov-clear (org-clones--get-body-start)
-	    (org-clones--get-body-end)
-	    'face 'org-clones-clone))
+	    'any)
+  (when (org-clones--node-body-p)
+    (ov-clear (org-clones--get-body-start)
+	      (org-clones--get-body-end)
+	      'any)))
 
 (defun org-clones--put-clone-effects ()
   "Put overlay and text properties at the current
@@ -452,6 +461,7 @@ node with a ORG-CLONES property."
      '(property "ORG-CLONES")
      :action (lambda ()
 	       (org-clones--iterate-over-clones
+		(org-clones--remove-clone-effects)
 		(org-clones--put-clone-effects))))))
 
 ;; (defun org-clones--remove-all-text-props-in-buffer ()
@@ -525,11 +535,25 @@ node being edited."
 
 ;;;; Commands
 
-(defun org-clones-create-clone-other-file ()
-  (interactive)
-  
 
-;;;###autoload 
+;;;###autoload
+(defun org-clones-store-marker ()
+  "Store a marker to create a clone."
+  (interactive)
+  (setq org-clones--temp-marker (point-marker))
+  (message "Stored %S for clone creation."
+	   (org-clones--get-headline-string)))
+
+;;;###autoload
+(defun org-clones-create-clone-from-marker ()
+  "Create a clone from the previously stored marker."
+  (interactive)
+  (if org-clones--temp-marker
+      (org-clones-create-clone org-clones--temp-marker)
+    (user-error "You have not marked the source node yet."))
+  (setq org-clones--temp-marker nil))
+
+;;;###autoload
 (defun org-clones-create-clone (&optional source-marker)
   "Insert a new headline, prompt the user for the source node,
 add clone properties to the source, add clone properties to the clone
@@ -538,28 +562,35 @@ SOURCE-POINT is a marker for the location of the source node"
   (interactive)
   (let (source-headline source-body source-id source-clone-list	clone-id)
 
-    ;; Create the new heading, save the ID
+    ;; At the new heading...
     (org-insert-heading-respect-content)
     (setq clone-id (org-id-get-create))
-    
-    ;; At the source node...
-    (save-excursion 
-      (if source-point
-	  (goto-char source-marker)
-	(org-clones--prompt-for-source-and-move))
-      (org-clones--remove-clone-effects)
-      (setq source-headline (org-clones--get-headline-string))
-      (setq source-body (org-clones--get-body-as-string))
-      (when (string= "" source-body)
-	(org-clones--insert-blank-body)
-	(setq source-body org-clones-empty-body-string))
-      (setq source-id (org-id-get-create))
-      (org-entry-add-to-multivalued-property (point)
-					     "ORG-CLONES"
-					     clone-id)
-      (setq source-clone-list (org-clones--get-clone-ids))
-      (org-clones--put-clone-effects))
 
+    ;; At the source heading...
+    (cl-flet ((source-node-prep
+	       nil
+	       (org-back-to-heading)
+	       (org-clones--remove-clone-effects)
+	       (setq source-headline (org-clones--get-headline-string))
+	       (setq source-body (org-clones--get-body-as-string))
+	       (when (string= "" source-body)
+		 (org-clones--insert-blank-body)
+		 (setq source-body org-clones-empty-body-string))
+	       (setq source-id (org-id-get-create))
+	       (org-entry-add-to-multivalued-property (point)
+						      "ORG-CLONES"
+						      clone-id)
+	       (setq source-clone-list (org-clones--get-clone-ids))
+	       (org-clones--put-clone-effects)))
+
+      (if source-marker
+	  (with-current-buffer (marker-buffer source-marker)
+	    (source-node-prep))
+	
+	(save-excursion 
+	  (org-clones--prompt-for-source-and-move)
+	  (source-node-prep))))
+    
     ;; For each clone from the source, add new clone id
     (cl-loop for clone-id in source-clone-list
 	     do (org-clones--with-point-at-id clone-id
