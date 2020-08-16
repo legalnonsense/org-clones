@@ -653,10 +653,10 @@ SOURCE-POINT is a marker for the location of the source node"
   (org-clones--inhibit-read-only
    (erase-buffer)))
 
-;;; Development
+;;;; Development
 
 (cl-defmacro org-clones--create-text-watcher (name start end &optional &key
-						   enter exit compare-func
+						   enter exit storage-form
 						   change no-change disable
 						   other-props)
   "NAME is the name used to create the underlying function and variable.
@@ -666,33 +666,41 @@ Text properties will go from START to END.
 All other keys are optional:
 
 ENTER is a form executed when the cursor enters the text field.
+When the cursor enters the text field, STORAGE-FORM will run 
+and store the return value in a variable named 
+ `org-clones--text-watcher-storage-NAME'.
+This variable is available to retrieve the initial value of the
+text field after the cursor enters the field.
+
+If STORAGE-FORM is nil, the default behavior is to store the
+value of  `buffer-substring' from START to END. 
 
 EXIT is a form executed when cursor exits the text field. 
 
 CHANGE is the form executed if there was a change of the text
-from START to END, comparing that text before and after
-the cursor leaves the field using `string='. 
-(See COMPARE-FUNC to customize this behavior.)
+from START to END, comparing the value of STORAGE-FORM before 
+and after the cursor leaves the field. This comparison is done 
+with `string='. 
 
 NO-CHANGE is a form executed if there was no change to the text. 
 
-COMPARE-FUNC determines what text is stored for later comparison. 
-If nil (i.e., the default), it will store the `buffer-substring' 
-from START to END. 
+Note: EXIT will be evaluated _before_ CHANGE or NO CHANGE.
 
-DISABLE removes all text properties set by the macro call. 
+If DISABLE is t, it removes all text properties set by the macro call. 
 
 OTHER-PROPS are other text properties to from START to END. They 
-will be removed if DISABLE is t.
+will also be removed if DISABLE is t.
 
 This marco will automatically turn `cursor-sensor-mode' on or off
 as appropriate."
 
   ;; Create the function and variable names for later use
   (let ((var-name
-	 (intern (concat "org-clones--text-watcher-storage-" (symbol-name name))))
-     	(function-name
-	 (intern (concat "org-clones--text-watcher-func-" (symbol-name name)))))
+	 (intern (concat "org-clones--text-watcher-storage-"
+			 (symbol-name name))))
+	(function-name
+	 (intern (concat "org-clones--text-watcher-func-"
+			 (symbol-name name)))))
     `(progn
        ;; Create a unique storage variable
        (if (boundp ',var-name)
@@ -709,14 +717,14 @@ as appropriate."
 	    ;; Run whatever is bound to the :enter keyword...
 	    ,@enter
 	    ;; ...and store the current value of the field
-	    (setq ,var-name (or ,@compare-func
+	    (setq ,var-name (or ,@storage-form
 				(buffer-substring ,start ,end))))
 	   ;; If we left the field:
 	   (`left
 	    ;; Run whatever is bound to :exit...
 	    ,@exit
 	    ;; Check if the field was modified...
-	    (if (string= (or ,@compare-func
+	    (if (string= (or ,@storage-form
 			     (buffer-substring ,start ,end))
 			 ,var-name)
 		;; ...and run the appropriate forms
@@ -748,13 +756,34 @@ as appropriate."
 	 (unless (memq ',function-name (get-text-property
 					,start
 					'cursor-sensor-functions))
+
+	   ;; TODO:
+	   ;; For now, only one function can be added to the 
+	   ;; `cursor-sensor-functions' property. If a second function is added
+	   ;; to text that previously had a value for that property, the 
+	   ;; value will be overridden, rather than added. Fixing this requires
+	   ;; writing a function akin to `add-face-text-property' which preserves
+	   ;; the previous value of the text property. The only way I see to do this
+	   ;; is to iterate over each point in the text property range.
+	   ;; (`add-face-text-property' is a C function.)
+	   ;;
+	   ;; I do not see the use-case for overlapping text fields
+	   ;; so this is not a priority (though should be an easy fix). 
 	   (put-text-property
 	    ,start
 	    ,end
 	    'cursor-sensor-functions
-	    (append (-list ',function-name) (get-text-property
-					     ,start
-					     'cursor-sensor-functions))))
+	    (list ',function-name))) ;; See next comment
+
+	 ;; BUG: the below (commented) code does not work [it should replace
+	 ;; (list ',function-name), above] because it will pick up the
+	 ;; previous property value and apply it to the current range,
+	 ;; thereby changing the start and end of the previous property value.
+	 ;;
+	 ;; (append (-list ',function-name) (get-text-property
+	 ;; 				     ,start
+	 ;; 				     'cursor-sensor-functions))))
+	 
 	 ;; ...and add any other text properties supplied by the user.
 	 (when ',other-props
 	   (add-text-properties ,start ,end ',other-props)))
