@@ -660,14 +660,112 @@ SOURCE-POINT is a marker for the location of the source node"
 ;;; Org-clones.el ends here
 
 
+;;; Development
 
+(org-clones--create-text-watcher
+ watcher-1
+ :enter ((message "entered"))
+ :exit ((message "exited"))
+ :compare-func ((buffer-substring 1 2))
+ :change nil
+ :no-change ((message "no change"))
+ :start 1
+ :end 10)
 
+(cl-defmacro org-clones--create-text-watcher (name &optional &key start end
+						   enter exit compare-func
+						   change no-change disable
+						   other-props)
+  ;; Create the function and variable names for later use
+  (let ((var-name
+	 (intern (concat "text-watcher-var-" (symbol-name name))))
+     	(function-name
+	 (intern (concat "text-watcher-func-" (symbol-name name)))))
+    `(progn
+       ;; Create a unique storage variable
+       (if (boundp ',var-name)
+	   (setq ,var-name nil)
+	 (defvar ,var-name nil))
+       ;; Create a function name that will be added to the
+       ;; cursor-sensor-functions list.
+       (defun ,function-name (window last-pos entered-or-left)
+	 ;; Check if we entered or left the cursor field, and call
+	 ;; the appropriate functions
+	 (pcase entered-or-left
+	   ;; If we entered the field:
+	   (`entered
+	    ;; Run whatever is bound to the :enter keyword...
+	    ,@enter
+	    ;; ...and store the current value of the field
+	    (setq ,var-name (or ,@compare-func
+				(buffer-substring ,start ,end))))
+	   ;; If we left the field:
+	   (`left
+	    ;; Run whatever is bound to :exit...
+	    ,@exit
+	    ;; Check if the field was modified...
+	    (if (string= (or ,@compare-func
+			     (buffer-substring ,start ,end))
+			 ,var-name)
+		;; ...and run the appropriate forms
+		,@no-change
+	      ,@change))
+	   ;; If the value of entered-or-left is not entered or left,
+	   ;; there has been a catastrophe.
+	   (_ (error "Something went horribly wrong.")))
 
+	 ;; If we are disabling the function:
+	 (if ,disable
+	     (progn 
+	       ;; Remove the function from the function list...
+	       (put-text-property
+		,start
+		,end
+		'cursor-sensor-functions
+		;; (This removes the function from the cursor-sensor-functions
+		;; list while preserving other functions in the list)
+		(remq ',function-name
+		      (-list (get-text-property ,start
+						'cursor-sensor-functions))))
+	       ;; ...remove other text properties set by the user...
+	       (when ,other-props
+		 (remove-text-properties ,start ,end ',other-props))
+	       ;; ...and reset the value of var-name.
+	       (setq ,var-name nil))
+	   
+	   ;; Otherwise, we are enabling the function:
+	   ;; Put it in the cursor-sensor-function list
+	   ;; (unless it's there already)...
+	   (unless (memq ',function-name (get-text-property
+					  ,start
+					  'cursor-sensor-functions))
+	     (put-text-property
+	      ,start
+	      ,end
+	      'cursor-sensor-functions
+	      (append (-list ',function-name) (get-text-property
+					       ,start
+					       'cursor-sensor-functions))))
+	   ;; ...and insert any other text properties supplied by the user.
+	   (when ,other-props
+	     (cl-loop for i from 0 to (1- (length ,other-props)) by 2
+		      do (put-text-property
+			  ,start
+			  ,end
+			  (nth i ,other-props)
+			  (nth (1+ i) ,other-props)))))
 
-
-
-
-
+	 ;; Should `cursor-sensor-mode' be turned on? 
+	 (if (save-excursion
+	       (save-restriction
+		 (widen)
+		 ;; Are there any cursor-sensor-function text properties
+		 ;; in the buffer?
+		 (next-single-property-change (point-min) 'cursor-sensor-functions)))
+	     ;; If so, enable cursor-sensor-mode...
+	     (cursor-sensor-mode 1)
+	   ;; ...otherwise, disable it. 
+	   (cursor-sensor-mode -1))))))
 
 
 
