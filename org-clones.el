@@ -694,6 +694,7 @@ will also be removed if DISABLE is t.
 This marco will automatically turn `cursor-sensor-mode' on or off
 as appropriate."
 
+  (declare (indent defun))
   ;; Create the function and variable names for later use
   (let ((var-name
 	 (intern (concat "org-clones--text-watcher-storage-"
@@ -714,22 +715,31 @@ as appropriate."
 	 (pcase entered-or-left
 	   ;; If we entered the field:
 	   (`entered
-	    ;; Run whatever is bound to the :enter keyword...
-	    ,@enter
-	    ;; ...and store the current value of the field
+	    ;; Update the storage value...
 	    (setq ,var-name (or ,@storage-form
-				(buffer-substring ,start ,end))))
+				(buffer-substring ,start ,end)))
+	    ;; ... and run ENTER.
+	    ,@enter)
+
 	   ;; If we left the field:
 	   (`left
-	    ;; Run whatever is bound to :exit...
+	    ;; Run EXIT...
 	    ,@exit
-	    ;; Check if the field was modified...
+	    ;; ...check if the field was modified...
 	    (if (string= (or ,@storage-form
 			     (buffer-substring ,start ,end))
 			 ,var-name)
-		;; ...and run the appropriate forms
-		,@no-change
-	      ,@change))))
+		;; ...if not, run NO-CHANGE and set the storage to nil...
+		(progn 
+		  ,@no-change
+		  (setq ,var-name nil))
+	      ;; ...otherwise, update the storage to the current value...
+	      (setq ,var-name (or ,@storage-form
+				  (buffer-substring ,start ,end)))
+	      ;; ...run CHANGE...
+	      ,@change)
+	    ;; ...and reset the storage variable.
+	    (setq ,var-name nil))))
 
        ;; If we are disabling the function:
        (if ,disable
