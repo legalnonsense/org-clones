@@ -672,8 +672,8 @@ and store the return value in a variable named
 This variable is available to retrieve the initial value of the
 text field after the cursor enters the field.
 
-If STORAGE-FORM is nil, the default behavior is to store the
-value of  `buffer-substring' from START to END. 
+If STORAGE-FORM is omitted or nil, the default behavior is to store the
+value of `buffer-substring' from START to END. 
 
 EXIT is a form executed when cursor exits the text field. 
 
@@ -702,6 +702,13 @@ as appropriate."
 	(function-name
 	 (intern (concat "org-clones--text-watcher-func-"
 			 (symbol-name name)))))
+    ;; If the user did not provide STORAGE-FORM,
+    ;; set it to the default
+    ;;
+    ;; TODO: the default should probably get the text-property
+    ;; start and end range rather than using START and END
+    (when (null storage-form)
+      (setq storage-form `((buffer-substring ,start ,end))))
     `(progn
        ;; Create a unique storage variable
        (if (boundp ',var-name)
@@ -716,8 +723,7 @@ as appropriate."
 	   ;; If we entered the field:
 	   (`entered
 	    ;; Update the storage value...
-	    (setq ,var-name (or ,@storage-form
-				(buffer-substring ,start ,end)))
+	    (setq ,var-name ,@storage-form)
 	    ;; ... and run ENTER.
 	    ,@enter)
 
@@ -725,21 +731,19 @@ as appropriate."
 	   (`left
 	    ;; Run EXIT...
 	    ,@exit
-	    ;; ...check if the field was modified...
-	    (if (string= (or ,@storage-form
-			     (buffer-substring ,start ,end))
-			 ,var-name)
+	    ;; ...check if the field was modified...	  
+	    (if (string= ,@storage-form ,var-name)
 		;; ...if not, run NO-CHANGE and set the storage to nil...
 		(progn 
 		  ,@no-change
 		  (setq ,var-name nil))
 	      ;; ...otherwise, update the storage to the current value...
-	      (setq ,var-name (or ,@storage-form
-				  (buffer-substring ,start ,end)))
+	      (setq ,var-name ,@storage-form)
 	      ;; ...run CHANGE...
-	      ,@change)
-	    ;; ...and reset the storage variable.
-	    (setq ,var-name nil))))
+	      ,@change
+	      ;; ...and reset the storage variable.
+	      (setq ,var-name nil)))))
+
 
        ;; If we are disabling the function:
        (if ,disable
@@ -785,8 +789,8 @@ as appropriate."
 	    'cursor-sensor-functions
 	    (list ',function-name))) ;; See next comment
 
-	 ;; BUG: the below (commented) code does not work [it should replace
-	 ;; (list ',function-name), above] because it will pick up the
+	 ;; BUG: the below (commented) code does not work (it should replace
+	 ;; (list ',function-name), above) because it will pick up the
 	 ;; previous property value and apply it to the current range,
 	 ;; thereby changing the start and end of the previous property value.
 	 ;;
@@ -816,4 +820,12 @@ as appropriate."
 
 (provide 'org-clones)
 
+
+
 ;;; Org-clones.el ends here
+(cl-defmacro xxx (&key a)
+  (if (null a)
+      (setq a 'b))
+  `(progn ',a))
+
+(macroexpand '(xxx))
