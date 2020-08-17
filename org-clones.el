@@ -729,18 +729,40 @@ as appropriate."
 
 	   ;; If we left the field:
 	   (`left
+	    (setq xxx (1+ xxx))
 	    ;; Run EXIT...
 	    ,@exit
 	    ;; ...check if the field was modified...	  
-	    (if (string= ,@storage-form ,var-name)
+	    (if (string=
+		 (prog2
+		     (setq cursor-sensor-inhibit t)
+		     (save-excursion
+		       (goto-char last-pos)
+		       (message "%s" ,@storage-form)
+		       ,@storage-form)
+		   (setq cursor-sensor-inhibit nil))
+		 ,var-name)
 		;; ...if not, run NO-CHANGE and set the storage to nil...
 		(progn 
 		  ,@no-change
 		  (setq ,var-name nil))
 	      ;; ...otherwise, update the storage to the current value...
-	      (setq ,var-name ,@storage-form)
+	      (setq ,var-name
+		    (prog2
+			(setq cursor-sensor-inhibit t)
+			(save-excursion
+			  (goto-char last-pos)
+			  (message "%s" ,@storage-form)
+			  ,@storage-form)
+		      (setq cursor-sensor-inhibit nil)))
+
 	      ;; ...run CHANGE...
-	      ,@change
+	      (prog2
+		  (setq cursor-sensor-inhibit t)
+		  (save-excursion
+		    (goto-char last-pos)
+		    ,@change)
+		(setq cursor-sensor-inhibit nil))
 	      ;; ...and reset the storage variable.
 	      (setq ,var-name nil)))))
 
