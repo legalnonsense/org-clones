@@ -75,6 +75,7 @@
 
 (require 'org)
 (require 'org-id)
+(require 'org-ql)
 (require 'ov)
 (require 'org-ml)
 
@@ -116,6 +117,24 @@ Can be any string other than whitespace."
   :group 'org-clones
   :type 'string)
 
+(defcustom org-clones-clone-overlay-props nil
+  "List of overlays applied to the headline and body of 
+cloned nodes."
+  :group 'org-clones
+  :type 'list)
+
+(defcustom org-clones-clone-headline-text-props
+  '((cursor-sensor-functions . (org-clones--text-watcher-func-headline-watcher)))
+  "List of text properties applied to the headline of cloned nodes."
+  :group 'org-clones
+  :type 'list)
+
+(defcustom org-clones-clone-body-text-props
+  '((cursor-sensor-functions . (org-clones--text-watcher-func-body-watcher)))
+  "List of text properties applied to the body of cloned nodes."
+  :group 'org-clones
+  :type 'list)
+
 ;;;; Variables
 
 (defvar org-clones--restore-state nil
@@ -148,7 +167,7 @@ separate file.")
 ;;;; Macros
 
 (defmacro org-clones--inhibit-read-only (&rest body)
-  "Quick substitute for (let ((inhibit-read-only t)) ...)."
+  "Substitute for (let ((inhibit-read-only t)) ...)."
   `(let ((inhibit-read-only t))
      ,@body))
 
@@ -157,8 +176,7 @@ separate file.")
   `(save-excursion
      (when-let ((clone-ids (org-clones--get-clone-ids)))
        (cl-loop for clone-id in clone-ids
-		do (org-clones--with-point-at-id
-		     clone-id
+		do (org-clones--with-point-at-id clone-id
 		     ,@body)))))
 
 (defmacro org-clones--with-point-at-id (id &rest body)
@@ -195,7 +213,7 @@ the leading stars."
 
 (defun org-clones--goto-headline-end ()
   "Goto the last point of the headline (i.e., before the
-leading stars."
+tag line."
   (org-back-to-heading t)
   (if (re-search-forward
        (concat ":" org-tag-re ":") (point-at-eol) t)
@@ -208,11 +226,10 @@ leading stars."
 (defun org-clones--get-headline-end ()
   "Get the point at the end of the headline, but
 before the ellipsis."
-  (save-excursion 
-    (org-clones--goto-headline-end)))
+  (save-excursion (org-clones--goto-headline-end)))
 
 (defun org-clones--delete-headline ()
-  "Replace the headline of the heading at point."
+  "Delete the headline of the heading at point."
   (org-clones--inhibit-read-only
    (unless (string=
 	    (plist-get (cadr (org-element-at-point)) :raw-value)
@@ -234,8 +251,9 @@ TODO state, headline text, and tags."
 ;;     (insert headline)))
 
 (defun org-clones--replace-headline (headline)
+  "Replace the headline text at point with HEADLINE"
   (org-ml-update-this-headline*
-    (org-ml-set-property :title `(,headline) it)))
+    (org-ml-set-property :title `(,(concat headline " ")) it)))
 
 (defun org-clones--get-body-end ()
   "Get the end point of the body of the current node."
@@ -296,7 +314,7 @@ and return the tree beginning with the section element."
 				   (point-max))
 			       'first-section nil nil nil nil))
 
-(defun org-clones--get-body-as-string ()
+(defun org-clones--get-body-string ()
   "Get the body of the current node as a string." 
   (org-element-interpret-data 
    (org-clones--get-section-elements)))
@@ -344,9 +362,9 @@ place text properties and overlays in the cloned nodes."
   (interactive)
   (org-clones--remove-clone-effects)
   (let ((headline (org-clones--get-headline-string))
-	(body (if (string= "" (org-clones--get-body-as-string))
+	(body (if (string= "" (org-clones--get-body-string))
 		  org-clones-empty-body-string
-		(org-clones--get-body-as-string))))
+		(org-clones--get-body-string))))
 
     ;; Replace the headline in the current node to ensure
     ;; there aren't differences in white space between the nodes
@@ -368,35 +386,29 @@ place text properties and overlays in the cloned nodes."
 		   (point) "ORG-CLONES" this-id)
 		  (unless (org-clones--get-clone-ids)
 		    (org-clones--remove-clone-effects))))
-    (message "This node is now independent of other clones. It will not be synced.")))
+    (message "This node is no longer synced with other clones.")))
 
 ;;; Text properties and overlays 
 
-(defun org-clones--make-read-only ()
-  "Make the node at point read-only, for the purposes
-of locking edits of the headline and body."
-  (put-text-property (org-clones--get-headline-start)
-		     (org-clones--get-headline-end)
-		     'org-clones t)
-  (put-text-property (org-clones--get-headline-start)
-		     (org-clones--get-headline-end)
-		     'read-only t)
-  (put-text-property (org-clones--get-body-start)
-		     (org-clones--get-body-end)
-		     'org-clones t)
-  (put-text-property (org-clones--get-body-start)
-		     (org-clones--get-body-end)
-		     'read-only t))
+;; (defun org-clones--make-read-only ()
+;;   "Make the node at point read-only, for the purposes
+;; of locking edits of the headline and body."
+;;   (put-text-property (org-clones--get-headline-start)
+;; 		     (org-clones--get-headline-end)
+;; 		     'org-clones t)
+;;   (put-text-property (org-clones--get-body-start)
+;; 		     (org-clones--get-body-end)
+;; 		     'org-clones t))
 
-(defun org-clones--remove-read-only ()
-  "Remove read-only text properties for the current node."
-  (let ((inhibit-read-only t))
-    (remove-text-properties (org-clones--get-headline-start)
-			    (org-clones--get-headline-end)
-			    '(read-only t 'face t))
-    (remove-text-properties (org-clones--get-body-start)
-			    (org-clones--get-body-end)
-			    '(read-only t 'face t))))
+;; (defun org-clones--remove-read-only ()
+;;   "Remove read-only text properties for the current node."
+;;   (let ((inhibit-read-only t))
+;;     (remove-text-properties (org-clones--get-headline-start)
+;; 			    (org-clones--get-headline-end)
+;; 			    '(read-only t 'face t))
+;;     (remove-text-properties (org-clones--get-body-start)
+;; 			    (org-clones--get-body-end)
+;; 			    '(read-only t 'face t))))
 
 (defun org-clones--put-text-properties ()
   "Make the node at point read-only, for the purposes
@@ -405,16 +417,14 @@ of locking edits of the headline and body."
   (cl-loop
    with beg = (org-clones--get-headline-start)
    with end = (org-clones--get-headline-end)
-   for (prop . val) in `((org-clones-headline . t)
-			 (read-only . t))
+   for (prop . val) in org-clones-clone-headline-text-props
    do (put-text-property beg end prop val))
 
   ;; For the body...
   (cl-loop
    with beg = (org-clones--get-body-start)
    with end = (org-clones--get-body-end)
-   for (prop . val) in `((org-clones-body . t)
-			 (read-only . t))
+   for (prop . val) in org-clones-clone-body-text-props
    do (put-text-property beg end prop val)))
 
 (defun org-clones--remove-text-properties ()
@@ -422,33 +432,24 @@ of locking edits of the headline and body."
   (let ((inhibit-read-only t))
     (remove-text-properties (org-clones--get-headline-start)
 			    (org-clones--get-headline-end)
-			    '(read-only t org-clones t))
+			    org-clones-clone-headline-text-props)
 
     (remove-text-properties (org-clones--get-body-start)
 			    (org-clones--get-body-end)
-			    '(read-only t org-clones t))))
+			    org-clones-clone-body-text-props)))
 
-(defun org-clones--remove-overlays ()
-  "Remove the clone overlay at the headline and body
-of the current node."
-  (ov-clear (org-clones--get-headline-start)
-	    (org-clones--get-headline-end)
-	    'any)
-  (when (org-clones--node-body-p)
-    (ov-clear (org-clones--get-body-start)
-	      (org-clones--get-body-end)
-	      'any)))
+
 
 (defun org-clones--put-clone-effects ()
   "Put overlay and text properties at the current
 node."
-  ;;(org-clones--put-text-properties)
+  (org-clones--put-text-properties)
   (org-clones--put-overlays))
 
 (defun org-clones--remove-clone-effects ()
   "Remove overlay and text properties at the current
 node."
-  ;;(org-clones--remove-text-properties)
+  (org-clones--remove-text-properties)
   (org-clones--remove-overlays))
 
 (defun org-clones--put-all-clone-effects-in-buffer ()
@@ -464,47 +465,56 @@ node with a ORG-CLONES property."
 		(org-clones--remove-clone-effects)
 		(org-clones--put-clone-effects))))))
 
-;; (defun org-clones--remove-all-text-props-in-buffer ()
-;;   (org-clones--inhibit-read-only
-;;    (cl-loop for points being the intervals of (current-buffer) property 'org-clones
-;; 	    if (get-text-property (car points) 'org-clones)
-;; 	    do (remove-list-of-text-properties (car points) (cdr points)
-;; 					       '(asdf face read-only)))))
-
 (defun org-clones--remove-all-clone-effects-in-buffer ()
-"Remove clone effects from all clones."
-(setq org-ql-cache (make-hash-table :weakness 'key))
-(org-with-wide-buffer
- (org-ql-select (current-buffer)
-   '(property "ORG-CLONES")
-   :action (lambda ()
-	     (org-clones--iterate-over-clones
-	      (org-clones--remove-clone-effects))))))
+  "Remove clone effects from all clones."
+  (setq org-ql-cache (make-hash-table :weakness 'key))
+  (org-with-wide-buffer
+   (org-ql-select (current-buffer)
+     '(property "ORG-CLONES")
+     :action (lambda ()
+	       (org-clones--iterate-over-clones
+		(org-clones--remove-clone-effects))))))
 
 (defun org-clones--put-overlays ()
-  "Put the clone overlay at the headline and body
-of the current node."
-  (ov (org-clones--get-headline-start)
-      (org-clones--get-headline-end)
-      'face 'org-clones-clone
-      'keymap org-clones-overlay-map
-      'before-string org-clones-clone-prefix-string
-      'evaporate t
-      'org-clones t)
+  "Put overlays in `org-clones-clone-overlay-props' on the current node."
+  (cl-loop for (prop . val) in org-clones-clone-overlay-props
+	   do (progn (ov (org-clones--get-headline-start)
+			 (org-clones--get-headline-end)
+			 prop val)
+		     (ov (org-clones--get-body-start)
+			 (org-clones--get-body-end)
+			 prop val))))
 
-  (ov (org-clones--get-body-start)
-      (org-clones--get-body-end)
-      'face 'org-clones-clone
-      'keymap org-clones-overlay-map
-      'evaporate t
-      'org-clones t))
+(defun org-clones--remove-overlays ()
+  "Remove the overlays in `org-clones-clone-overlay-props' from the current node."
+  (cl-loop for (prop . val) in org-clones-clone-overlay-props
+	   do (progn (ov-clear prop val
+			       (org-clones--get-headline-start)
+			       (org-clones--get-headline-end))
+		     (ov-clear prop val
+			       (org-clones--get-body-start)
+			       (org-clones--get-body-end)))))
+
+(defun org-clones--cursor-sensor-mode-check ()
+  "Turn `cursor-sensor-mode' on or off if there is any
+cursor-sensor-functions text property in the buffer." 
+  (if (save-excursion
+	(save-restriction
+	  (widen)		
+	  (next-single-property-change
+	   (point-min)
+	   'cursor-sensor-functions)))
+      ;; If so, enable cursor-sensor-mode...
+      (cursor-sensor-mode 1)
+    ;; ...otherwise, disable it. 
+    (cursor-sensor-mode -1)))
+
+;;;; Editing clones
 
 (defun org-clones--edit-clone ()
   "Start edit mode."
   (interactive)
   (org-clones-edit-mode 1))
-
-;;;; Editing clones
 
 (defun org-clones--prompt-before-edit ()
   "Ask the user if they want to edit the node
@@ -535,14 +545,14 @@ node being edited."
 
 ;;;; Commands
 
-
 ;;;###autoload
 (defun org-clones-store-marker ()
   "Store a marker to create a clone."
   (interactive)
   (setq org-clones--temp-marker (point-marker))
   (message "Stored %S for clone creation."
-	   (org-clones--get-headline-string)))
+	   (org-no-properties 
+	    (org-clones--get-headline-string))))
 
 ;;;###autoload
 (defun org-clones-create-clone-from-marker ()
@@ -550,7 +560,7 @@ node being edited."
   (interactive)
   (if org-clones--temp-marker
       (org-clones-create-clone org-clones--temp-marker)
-    (user-error "You have not marked the source node yet."))
+    (user-error "You have not stored the source node yet."))
   (setq org-clones--temp-marker nil))
 
 ;;;###autoload
@@ -561,18 +571,16 @@ and add the headline and body from the source to the clone.
 SOURCE-POINT is a marker for the location of the source node"
   (interactive)
   (let (source-headline source-body source-id source-clone-list	clone-id)
-
     ;; At the new heading...
     (org-insert-heading-respect-content)
     (setq clone-id (org-id-get-create))
-
     ;; At the source heading...
     (cl-flet ((source-node-prep
 	       nil
 	       (org-back-to-heading)
 	       (org-clones--remove-clone-effects)
 	       (setq source-headline (org-clones--get-headline-string))
-	       (setq source-body (org-clones--get-body-as-string))
+	       (setq source-body (org-clones--get-body-string))
 	       (when (string= "" source-body)
 		 (org-clones--insert-blank-body)
 		 (setq source-body org-clones-empty-body-string))
@@ -582,25 +590,22 @@ SOURCE-POINT is a marker for the location of the source node"
 						      clone-id)
 	       (setq source-clone-list (org-clones--get-clone-ids))
 	       (org-clones--put-clone-effects)))
-
       (if source-marker
 	  (with-current-buffer (marker-buffer source-marker)
 	    (source-node-prep))
-	
 	(save-excursion 
 	  (org-clones--prompt-for-source-and-move)
 	  (source-node-prep))))
-    
     ;; For each clone from the source, add new clone id
     (cl-loop for clone-id in source-clone-list
-	     do (org-clones--with-point-at-id clone-id
-		  (cl-loop for clone in source-clone-list
-			   do
-			   (unless (string= clone (org-id-get-create))
-			     (org-entry-add-to-multivalued-property (point)
-								    "ORG-CLONES"
-								    clone)))))
-    
+	     do
+	     (org-clones--with-point-at-id clone-id
+	       (cl-loop for clone in source-clone-list
+			do
+			(unless (string= clone (org-id-get-create))
+			  (org-entry-add-to-multivalued-property (point)
+								 "ORG-CLONES"
+								 clone)))))
     ;; At the new clone...
     (org-entry-add-to-multivalued-property (point)
 					   "ORG-CLONES"
@@ -618,22 +623,27 @@ SOURCE-POINT is a marker for the location of the source node"
   " ORG-CLONES"
   nil
   (if org-clones-mode
-      (org-clones--put-all-clone-effects-in-buffer)
-    (org-clones--remove-all-clone-effects-in-buffer)))
+      (progn 
+	(org-clones--put-all-clone-effects-in-buffer)
+	(org-clones--cursor-sensor-mode-check))
+    (org-clones--remove-all-clone-effects-in-buffer)
+    (org-clones--cursor-sensor-mode-check)))
 
 (define-minor-mode org-clones-edit-mode
   "Mode to edit clones."
   nil
   " EDIT-CLONE"
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd org-clones-complete-edit-keybind) #'org-clones--complete-edit)
-    (define-key map (kbd org-clones-discard-edit-keybind) #'org-clones--discard-edit)
+    (define-key map (kbd org-clones-complete-edit-keybind)
+      #'org-clones--complete-edit)
+    (define-key map (kbd org-clones-discard-edit-keybind)
+      #'org-clones--discard-edit)
     map)
   (if org-clones-edit-mode
       (progn
 	(setq org-clones--restore-state
 	      (cons (org-clones--get-headline-string)
-		    (org-clones--get-body-as-string)))
+		    (org-clones--get-body-string)))
 	(org-clones--remove-clone-effects)
 	(setq org-clones--previous-header-line header-line-format)
 	(setq header-line-format
@@ -647,33 +657,27 @@ SOURCE-POINT is a marker for the location of the source node"
     (setq header-line-format
 	  org-clones--previous-header-line)))
 
-;;;; Support
-
-(defun org-clones--delete-buffer ()
-  (org-clones--inhibit-read-only
-   (erase-buffer)))
-
 ;;;; Development
 
-(cl-defmacro org-clones--create-text-watcher (name start end &optional &key
+(cl-defmacro org-clones--create-text-watcher (name &key
 						   enter exit storage-form
-						   change no-change disable
-						   other-props)
-  "NAME is the name used to create the underlying function and variable.
+						   change no-change)
 
-Text properties will go from START to END.
+  "Define a function for use with `cursor-sensor-mode' and the 
+associated text property. 
 
-All other keys are optional:
+NAME is the name used to create the underlying function and 
+storage variable.
 
 ENTER is a form executed when the cursor enters the text field.
 When the cursor enters the text field, STORAGE-FORM will run 
 and store the return value in a variable named 
  `org-clones--text-watcher-storage-NAME'.
-This variable is available to retrieve the initial value of the
-text field after the cursor enters the field.
+(This variable is available to retrieve the initial value of the
+text field after the cursor enters the field, if needed.)
 
-If STORAGE-FORM is omitted or nil, the default behavior is to store the
-value of `buffer-substring' from START to END. 
+;; If STORAGE-FORM is omitted or nil, the default behavior is to store the
+;; value of `buffer-substring' from START to END. 
 
 EXIT is a form executed when cursor exits the text field. 
 
@@ -684,170 +688,73 @@ with `string='.
 
 NO-CHANGE is a form executed if there was no change to the text. 
 
-Note: EXIT will be evaluated _before_ CHANGE or NO CHANGE.
-
-If DISABLE is t, it removes all text properties set by the macro call. 
-
-OTHER-PROPS are other text properties to from START to END. They 
-will also be removed if DISABLE is t.
-
-This marco will automatically turn `cursor-sensor-mode' on or off
-as appropriate."
+Note: EXIT will be evaluated before CHANGE or NO CHANGE."
 
   (declare (indent defun))
-  ;; Create the function and variable names for later use
   (let ((var-name
 	 (intern (concat "org-clones--text-watcher-storage-"
 			 (symbol-name name))))
 	(function-name
 	 (intern (concat "org-clones--text-watcher-func-"
 			 (symbol-name name)))))
-    ;; If the user did not provide STORAGE-FORM,
-    ;; set it to the default
-    ;;
-    ;; TODO: the default should probably get the text-property
-    ;; start and end range rather than using START and END
-    (when (null storage-form)
-      (setq storage-form `((buffer-substring ,start ,end))))
     `(progn
-       ;; Create a unique storage variable
        (if (boundp ',var-name)
 	   (setq ,var-name nil)
 	 (defvar ,var-name nil))
-       ;; Create a function name that will be added to the
-       ;; cursor-sensor-functions list.
        (defun ,function-name (window last-pos entered-or-left)
-	 ;; Check if we entered or left the cursor field, and call
-	 ;; the appropriate functions
-	 (pcase entered-or-left
-	   ;; If we entered the field:
-	   (`entered
-	    ;; Update the storage value...
-	    (setq ,var-name ,@storage-form)
-	    ;; ... and run ENTER.
-	    ,@enter)
-
-	   ;; If we left the field:
-	   (`left
-	    (setq xxx (1+ xxx))
-	    ;; Run EXIT...
-	    ,@exit
-	    ;; ...check if the field was modified...	  
-	    (if (string=
-		 (prog2
-		     (setq cursor-sensor-inhibit t)
-		     (save-excursion
-		       (goto-char last-pos)
-		       (message "%s" ,@storage-form)
-		       ,@storage-form)
-		   (setq cursor-sensor-inhibit nil))
-		 ,var-name)
-		;; ...if not, run NO-CHANGE and set the storage to nil...
-		(progn 
-		  ,@no-change
-		  (setq ,var-name nil))
-	      ;; ...otherwise, update the storage to the current value...
-	      (setq ,var-name
-		    (prog2
-			(setq cursor-sensor-inhibit t)
-			(save-excursion
-			  (goto-char last-pos)
-			  (message "%s" ,@storage-form)
-			  ,@storage-form)
-		      (setq cursor-sensor-inhibit nil)))
-
-	      ;; ...run CHANGE...
-	      (prog2
-		  (setq cursor-sensor-inhibit t)
+	 (let ((cursor-sensor-inhibit t))
+	   (pcase entered-or-left
+	     (`entered
+	      (setq ,var-name ,@storage-form)
+	      ,@enter)
+	     (`left
+	      (save-excursion
+		(goto-char last-pos)
+		,@exit)
+	      (if (string=
+		   (save-excursion
+		     (goto-char last-pos)
+		     ,@storage-form)
+		   ,var-name)
 		  (save-excursion
-		    (goto-char last-pos)
-		    ,@change)
-		(setq cursor-sensor-inhibit nil))
-	      ;; ...and reset the storage variable.
-	      (setq ,var-name nil)))))
+		    ,@no-change
+		    (setq ,var-name nil))
+		(setq ,var-name
+		      (save-excursion
+			(goto-char last-pos)
+			,@storage-form))
+		(save-excursion
+		  (goto-char last-pos)
+		  ,@change)
+		(setq ,var-name nil)))))))))
 
+(org-clones--create-text-watcher headline-watcher
+  :enter ((message "Entered cloned headline!")
+	  (ov (org-clones--get-headline-start)
+	      (org-clones--get-headline-end)
+	      'face '(:background "pink" :box t)))
+  :exit ((message "Left cloned headline!")
+	 (ov-clear 'face
+		   '(:background "pink" :box t)
+		   (org-clones--get-headline-start)
+		   (org-clones--get-headline-end)))
+  :change ((org-clones--update-clones))
+  :storage-form ((org-clones--get-headline-string)))
 
-       ;; If we are disabling the function:
-       (if ,disable
-	   (progn 
-	     ;; Remove the function from the function list...
-	     (put-text-property
-	      ,start
-	      ,end
-	      'cursor-sensor-functions
-	      ;; (This removes the function from the cursor-sensor-functions
-	      ;; list while keeping other functions in the list)
-	      (remq ',function-name
-		    (-list (get-text-property ,start
-					      'cursor-sensor-functions))))
-	     ;; ...remove other text properties set by the user...
-	     (when ',other-props
-	       (remove-text-properties ,start ,end ',other-props))
-	     ;; ...and reset the value of var-name.
-	     (setq ,var-name nil))
-	 
-	 ;; Otherwise, we are enabling the function:
-	 ;; Put it in the cursor-sensor-function list
-	 ;; (unless it's there already)...
-	 (unless (memq ',function-name (get-text-property
-					,start
-					'cursor-sensor-functions))
-
-	   ;; TODO:
-	   ;; For now, only one function can be added to the 
-	   ;; `cursor-sensor-functions' property. If a second function is added
-	   ;; to text that previously had a value for that property, the 
-	   ;; value will be overridden, rather than added. Fixing this requires
-	   ;; writing a function akin to `add-face-text-property' which preserves
-	   ;; the previous value of the text property. The only way I see to do this
-	   ;; is to iterate over each point in the text property range.
-	   ;; (`add-face-text-property' is a C function.)
-	   ;;
-	   ;; I do not see the use-case for overlapping text fields
-	   ;; so this is not a priority (though should be an easy fix). 
-	   (put-text-property
-	    ,start
-	    ,end
-	    'cursor-sensor-functions
-	    (list ',function-name))) ;; See next comment
-
-	 ;; BUG: the below (commented) code does not work (it should replace
-	 ;; (list ',function-name), above) because it will pick up the
-	 ;; previous property value and apply it to the current range,
-	 ;; thereby changing the start and end of the previous property value.
-	 ;;
-	 ;; (append (-list ',function-name) (get-text-property
-	 ;; 				     ,start
-	 ;; 				     'cursor-sensor-functions))))
-	 
-	 ;; ...and add any other text properties supplied by the user.
-	 (when ',other-props
-	   (add-text-properties ,start ,end ',other-props)))
-
-       ;; Should `cursor-sensor-mode' be turned on? 
-       (if (save-excursion
-	     (save-restriction
-	       (widen)
-	       ;; Are there any cursor-sensor-function text properties
-	       ;; in the buffer?
-	       (next-single-property-change (point-min) 'cursor-sensor-functions)))
-	   ;; If so, enable cursor-sensor-mode...
-	   (cursor-sensor-mode 1)
-	 ;; ...otherwise, disable it. 
-	 (cursor-sensor-mode -1)))))
-
+(org-clones--create-text-watcher body-watcher
+  :enter ((message "Entered cloned body!")
+	  (ov (org-clones--get-body-start)
+	      (org-clones--get-body-end)
+	      'face '(:background "pink" :box t)))
+  :exit ((message "Left cloned body!")
+	 (ov-clear 'face '(:background "pink" :box t)
+		   (org-clones--get-body-start)
+		   (org-clones--get-body-end)))
+  :change ((org-clones--update-clones))
+  :storage-form ((org-clones--get-body-string)))
 
 
 ;;;; Footer
 
 (provide 'org-clones)
 
-
-
-;;; Org-clones.el ends here
-(cl-defmacro xxx (&key a)
-  (if (null a)
-      (setq a 'b))
-  `(progn ',a))
-
-(macroexpand '(xxx))
