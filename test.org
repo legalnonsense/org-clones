@@ -1,21 +1,14 @@
-* Tssshi i newqqtjjjj asdfasdf  
+* Test
 :PROPERTIES:
 :ID:       2c5d3ad6-7a64-4e50-add9-9a1263e58b1f
 :ORG-CLONES: f5fec628-da86-449b-ad8b-08ef179fe777 b807dc5b-80d8-439c-afd4-0b295cfc1867
 :END:
-This is additional text
-#+begin_src emacs-lisp :results silent
-  (insert "test")
-#+end_src
+[empty clone body]
 
-* due Tssshi i newqqtjjjj asdfasdf :asdf:another_tag:
-DEADLINE: <2020-08-17 Mon>
+* Test 
 :PROPERTIES:
 :ID:       f5fec628-da86-449b-ad8b-08ef179fe777
 :ORG-CLONES: 2c5d3ad6-7a64-4e50-add9-9a1263e58b1f b807dc5b-80d8-439c-afd4-0b295cfc1867
 :END:
-This is additional text
-#+begin_src emacs-lisp :results silent
-  (insert "test")
-#+end_src
+[empty clone body]
 
