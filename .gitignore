@@ -15,3 +15,9 @@ org-clones-edit.el
 /org-clones.elc
 /test1.org
 /test2.org
+/#test3.org#
+/#test4.org#
+/test.org~
+/test1.org~
+/test3.org
+/test4.org
