@@ -157,8 +157,7 @@ separate file.")
 ;;;; Keymaps
 
 (defvar org-clones-overlay-map
-  (let ((map (make-keymap)))
-    (suppress-keymap map)
+  (let ((map (make-keymap)))    
     (define-key map [remap self-insert-command]
       #'org-clones--prompt-before-edit)
     (define-key map [remap newline]
@@ -445,24 +444,42 @@ of locking edits of the headline and body."
 					(list prop val)))))
 
 (defun org-clones--put-overlays ()
-  "Put overlays in `org-clones-clone-overlay-props' on the current node."
-  (cl-loop for (prop . val) in org-clones-clone-overlay-props
-	   do (progn (ov (org-clones--get-headline-start)
-			 (org-clones--get-headline-end)
-			 prop val)
-		     (ov (org-clones--get-body-start)
-			 (org-clones--get-body-end)
-			 prop val))))
+  "Put overlays in `org-clones-clone-overlay-props' on the current node." 
+  (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
+					(org-clones--get-headline-end)))
+	(body-overlay (make-overlay (org-clones--get-body-start)
+				    (org-clones--get-body-end)))
+	(len (length org-clones-clone-overlay-props))
+	(i 0)
+	(id (org-id-get)))
+    ;; (overlay-put headline-overlay 'org-clones-id id)
+    ;; (overlay-put body-overlay 'org-clones-id id)
+    (while (< i len)
+      (overlay-put headline-overlay
+		   (nth i org-clones-clone-overlay-props)
+		   (nth (1+ i) org-clones-clone-overlay-props))
+      (overlay-put body-overlay
+		   (nth i org-clones-clone-overlay-props)
+		   (nth (1+ i) org-clones-clone-overlay-props))
+      (setq i (+ i 2)))
+    (list headline-overlay body-overlay)))
+
+;; (defun org-clones--put-overlays ()
+;;   "Put overlay props in `org-clones-clone-overlay-props' on the current node."
+;;   (cl-loop for (prop . val) in org-clones-clone-overlay-propsbp
+;; 	   do (progn (ov (org-clones--get-headline-start)
+;; 			 (org-clones--get-headline-end)
+;; 			 prop val)
+;; 		     (ov (org-clones--get-body-start)
+;; 			 (org-clones--get-body-end)
+;; 			 prop val))))
 
 (defun org-clones--remove-overlays ()
   "Remove the overlays in `org-clones-clone-overlay-props' from the current node."
-  (cl-loop for (prop . val) in org-clones-clone-overlay-props
-	   do (progn (ov-clear prop val
-			       (org-clones--get-headline-start)
-			       (org-clones--get-headline-end))
-		     (ov-clear prop val
-			       (org-clones--get-body-start)
-			       (org-clones--get-body-end)))))
+  (ov-clear (org-clones--get-headline-start)
+	    (org-clones--get-headline-end))
+  (ov-clear (org-clones--get-body-start)
+	    (org-clones--get-body-end)))
 
 (defun org-clones--put-clone-effects ()
   "Put overlay and text properties at the current
@@ -506,7 +523,26 @@ node with a ORG-CLONES property."
      '(property "ORG-CLONES")
      :action (lambda ()
 	       (org-clones--iterate-over-clones
-		(org-clones--remove-clone-effects)
+		;; This is sloppy as hell but should
+		;; do the trick for the demonstration.
+		(ov-clear (org-clones--get-headline-start)
+			  (org-clones--get-headline-end)
+			  'any)
+		(ov-clear (org-clones--get-body-start)
+			  (org-clones--get-body-end)
+			  'any)
+		(remove-list-of-text-properties
+		 (org-clones--get-headline-start)
+		 (org-clones--get-headline-end)
+		 '(cursor-sensor-functions
+		   font-lock-face
+		   read-only))
+		(remove-list-of-text-properties
+		 (org-clones--get-body-start)
+		 (org-clones--get-body-end)
+		 '(cursor-sensor-functions
+		   font-lock-face
+		   read-only))		
 		(org-clones--put-clone-effects))))))
 
 ;;;; Cursor-sensor-functions
@@ -639,6 +675,7 @@ cursor-sensor-functions text property in the buffer."
 (defun org-clones--edit-clone ()
   "Start edit mode."
   (interactive)
+  (org-clones--remove-clone-effects)
   (org-clones-edit-mode 1))
 
 (defun org-clones--prompt-before-edit ()
@@ -665,7 +702,7 @@ to its previous state, and turn off the minor mode."
   "Sync all clones with the current state of the 
 node being edited."
   (interactive)
-  (org-clones--update-clones)
+  (org-clones--update-clones)  
   (org-clones-edit-mode -1))
 
 ;;;; Commands
@@ -769,7 +806,6 @@ SOURCE-POINT is a marker for the location of the source node"
 	(setq org-clones--restore-state
 	      (cons (org-clones--get-headline-string)
 		    (org-clones--get-body-string)))
-	;;(org-clones--remove-clone-effects)
 	(setq org-clones--previous-header-line header-line-format)
 	(setq header-line-format
 	      (concat
@@ -787,17 +823,20 @@ SOURCE-POINT is a marker for the location of the source node"
 (defun org-clones-demo-edit-mode ()
   "Overlay keymap version."
   (setq org-clones-clone-overlay-props
-	'((keymap . org-clones-overlay-map)
-	  (face . (:box t :background "pink" :foreground "pink"))))
+	'(keymap org-clones-overlay-map))
+  ;;(face . (:box t :background "pink" :foreground "black"))))
   (setq org-clones-clone-headline-text-props nil)
-  (setq org-clones-clone-body-text-props nil))
+  (setq org-clones-clone-body-text-props nil)
+  (org-clones--reset-clone-effects))
   
 (defun org-clones-demo-sensor-mode ()
   "Sensor version."
   (setq org-clones-clone-headline-text-props
 	'((cursor-sensor-functions . (org-clones--text-watcher-func-headline-watcher))))
   (setq org-clones-clone-body-text-props
-	'((cursor-sensor-functions . (org-clones--text-watcher-func-body-watcher)))))
+	'((cursor-sensor-functions . (org-clones--text-watcher-func-body-watcher))))
+  (setq org-clones-clones-overlay-props nil)
+  (org-clones--reset-clone-effects))
 
 ;;;; Footer
 

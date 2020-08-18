@@ -1,13 +1,35 @@
+LOOK AWAY. I AM HIDEOUS. 
+
+This is in progress so keep your creeper eyes away from it. 
+
 * Ideas for orgmode clones
 
+I want to be able to clone an orgmode heading so that it can appear in different places in an outline. When I edit one of these headings, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.htmlwhich, I wish I could use, but it’s not in Emacs so it is dead to me.
 
-I want to be able to clone an orgmode heading so that it can appear in different places in an outline. When I edit one of these headings, I want the changes to sync to all the other clones. It is a feature of Leo Editor, which I wish I could use, but it’s not in Emacs so it is dead to me. See, e.g., https://leoeditor.com/tutorial-pim.html. 
+* Why clones?
+Let’s say you have an outline with two headings:
+
+#+begin_src org
+* Animals
+* Animals you can eat
+#+end_src
+
+And you want to add a heading for dogs. Oh shit. Where does it go? It goes under both headings. Until now, orgmode could not do that. Now, it can /kind of/ do it. 
+
+#+begin_src org
+* Animals
+** Dogs
+* Animals you can eat
+** Dogs
+#+end_src
+
+Watch: [insert demo.]
 
 
-I have browsed various emacs transclusion efforts. I found them either under or overwhelming. Most of the time, I was not smart enough to make sense of it. Many seem half-complete. I now add a new, less than half complete, idea to the mix. 
+* Other transclusion efforts
 
-
-Try this:
+I have browsed various emacs transclusion efforts. None of them do what I want. 
+* Two solutions
 
 Goto 
 
