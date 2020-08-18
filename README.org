@@ -14,52 +14,63 @@ Let’s say you have an outline with two headings:
 * Animals you can eat
 #+end_src
 
-And you want to add a heading for dogs. Oh shit. Where does it go? It goes under both headings. Until now, orgmode could not do that. Now, it can /kind of/ do it. 
+And you want to add a heading for chickens. Oh shit. Where does it go? It goes under both headings. Until now, orgmode could not do that. Now, it can /kind of/ do it. 
 
 #+begin_src org
 * Animals
-** Dogs
+** Chickens
 * Animals you can eat
-** Dogs
+** Chickens
 #+end_src
 
 Watch: [insert demo.]
+* Terminology
+I use the following words to describe the following things:
 
+"Node" means an entry in an org outline. 
 
+"Headline" means the headline text of the entry, but does not include the headline's todo state or tags
+
+"Body" means everything after the headline, planning line, and property drawers until the next node.
+
+* Installation 
+** Dependencies
+Install these dependencies. 
+- [[https://github.com/ndwarshuis/org-ml][org-ml]] (hopefully temporary)
+- [[https://github.com/alphapapa/org-ql][org-ql]] (maybe temporary)
+- [[https://github.com/emacsorphanage/ov][ov]] (definitely temporary)
+* Usage
+- Open a new org file.
+- Create a heading. 
+- Run either =org-clones-demo-sensor-mode= or =org-clones-demo-edit-mode= depending on which one you want to try first. 
+- =M-x= =org-clones-create-clone=
+- You’ll be prompted to pick the source node via =org-goto=. Pick the node you just created.
+- Now you have a clone. If you create a clone of a node with a blank body, a place holder will be inserted because otherwise the text properties and overlays become unmanageable. 
+- Save the buffer. (Otherwise =org-id= won’t be able to find the headings.)
+- Edit demo:
+  - There will be a purple background placed on all clone headlines and bodies. This is meant to shock your senses. 
+  - Go to the headline or body of one of the nodes. If you are are using the =edit= demo, try to type something. You’ll be asked if you want to edit the clone. Press =y=.
+  - Edit it. Press C-c C-c and your edits will be synced to the other clones. The end. 
+- Sensor demo:
+  - Go to the headline or body of one of the nodes. You’ll see a message in the echo area telling you that you are in a clone. The background color will change. A box will appear. This is also meant to shock your senses. 
+  - Edit the text. Move the point outside of the field. All other clones will update. The end.
+* What feedback do you want?
+First, thank you for testing and reading this far. Here are the questions on my mind:
+1. Which is the better way to do this: cursor-sensor-functions or keymapped overlays? I learn toward the cursor-sensor method, but like the clarity of having an “editing mode” akin to a capture buffer. Should it be a hybrid?
+2. If the answer is the overlay and keymap, how do I make a keymap that grabs anything that might edit the node? Do I need to remap every conceivable way to edit the node? Should something pop up to alert the user if they are on a clone?
+3. Does anyone use =cursor-sensor-mode= who can speak to how much it slows things down? 
+4. What if clones do not match (because something went wrong with syncing, or whatever)? How to handle conflicts, if at all?
+5. I thought that properties, todo state, and tags should not be part of a clone; i.e., the only thing synced is the headline and body of the node. Agree or disagree?
+6. The cursor sensor macro would be easy to expand for transclusion outside of orgmod. I barely use emacs except for orgmode. Does anyone think this method would be valuable? 
+* Problems
+- [ ] Strange cursor movement when you move upward out of a headline into a clone. Needs a save-excursion somewhere but I don’t know where.
+- [ ] 
 * Other transclusion efforts
+Here are some other transclusion efforts or discussions of such efforts:
 
-I have browsed various emacs transclusion efforts. None of them do what I want. 
-* Two solutions
+https://github.com/alphapapa/transclusion-in-emacs
+https://github.com/justintaft/emacs-transclusion/blob/master/emacs-transclusion.el
+https://github.com/gregdetre/emacs-freex
 
-Goto 
-
-1. Require both .el files
-2. Create a blank orgmode file
-3. Insert a header. Give it a headline, a code block, or something in its body. 
-4. =M-x org-transclude-create-clone=
-5. Select the header you just inserted (should popup an interface via org-goto). 
-6. Now you have a clone of the first header. Its headline and body should be read-only. 
-7. You want to edit a clone, put the cursor on the headline or body. Press enter. Now you can edit it. Press C-c C-c, and those changes will sync to the other clone. C-c C-k will abandon the changes. 
-
-
-You can clone a heading as many times as you want. If there are multiple clones, it does not matter which one you select as the source; each clone knows about all other clones so there is no “source” heading. 
-
-
-Quick notes:
-* Only the headline (including todo and tags) and the body (i.e., the properties, planning line, and initial drawers) are cloned. This was an arbitrary decision.
-* Child nodes are not part of the clone. The clone can be moved within the outline to different locations.
-* There are (fixable) problems with the precise location of the read-only text properties and the clone face overlay. For now, it gets the idea across so it serves its purpose.
-* While there are questionable design and coding decisions, I think the fundamental design idea is sound, i.e., not relying on modification hooks and having a clone editing mode to abort or commit changes.
-* I think this design would work across files, but have not tested. 
-** Update: it works, and creating clones across files also works with setting a marker before creating the clone. 
-* If this is a good design, there are a lot of questions about how to best accomplish it. Org-ml looks like it might be a useful tool. See https://github.com/ndwarshuis/org-ml. Right now, using org-ml for headlines and org-element for the body. 
-* Overlays vs. text properties: orgmode will not allow a 'keymap text property. Therefore, overlays have to be used.
-** Unless there is a better way to "lock" the clone. The other choice would be to use the 'point-entered and point-left, which is the next idea to explore.
-
-
-Ideas or feedback, yea or nay, are welcome. 
-
-
-
-
+All very interesting, but I want one thing: headings that can appear anywhere that will be synced when edited. That’s it. 
 

@@ -431,17 +431,16 @@ of locking edits of the headline and body."
    do (put-text-property beg end prop val)))
 
 (defun org-clones--remove-text-properties ()
-  "Remove read-only text properties for the current node."
+  "Remove text properties for the current node."
+  ;; It's possible there is a read-only property here...
   (let ((inhibit-read-only t))
-    (cl-loop for (prop . val) in org-clones-clone-headline-text-props
-	     do (remove-text-properties (org-clones--get-headline-start)
-					(org-clones--get-headline-end)
-					(list prop val)))
+    (set-text-properties (org-clones--get-headline-start)
+			 (org-clones--get-headline-end)
+			 nil)
+    (set-text-properties (org-clones--get-body-start)
+			 (org-clones--get-body-end)
+			 nil)))
 
-    (cl-loop for (prop . val) in org-clones-clone-body-text-props
-	     do (remove-text-properties (org-clones--get-body-start)
-					(org-clones--get-body-end)
-					(list prop val)))))
 
 (defun org-clones--put-overlays ()
   "Put overlays in `org-clones-clone-overlay-props' on the current node." 
@@ -463,16 +462,6 @@ of locking edits of the headline and body."
 		   (nth (1+ i) org-clones-clone-overlay-props))
       (setq i (+ i 2)))
     (list headline-overlay body-overlay)))
-
-;; (defun org-clones--put-overlays ()
-;;   "Put overlay props in `org-clones-clone-overlay-props' on the current node."
-;;   (cl-loop for (prop . val) in org-clones-clone-overlay-propsbp
-;; 	   do (progn (ov (org-clones--get-headline-start)
-;; 			 (org-clones--get-headline-end)
-;; 			 prop val)
-;; 		     (ov (org-clones--get-body-start)
-;; 			 (org-clones--get-body-end)
-;; 			 prop val))))
 
 (defun org-clones--remove-overlays ()
   "Remove the overlays in `org-clones-clone-overlay-props' from the current node."
@@ -516,33 +505,15 @@ node with a ORG-CLONES property."
 	       (org-clones--iterate-over-clones
 		(org-clones--remove-clone-effects))))))
 
-(defun org-clones--reset-clone-effects ()
+(defun org-clones--reset-all-clone-effects ()
+  "Remove clone effects from all clones."
   (setq org-ql-cache (make-hash-table :weakness 'key))
   (org-with-wide-buffer
    (org-ql-select (current-buffer)
      '(property "ORG-CLONES")
      :action (lambda ()
 	       (org-clones--iterate-over-clones
-		;; This is sloppy as hell but should
-		;; do the trick for the demonstration.
-		(ov-clear (org-clones--get-headline-start)
-			  (org-clones--get-headline-end)
-			  'any)
-		(ov-clear (org-clones--get-body-start)
-			  (org-clones--get-body-end)
-			  'any)
-		(remove-list-of-text-properties
-		 (org-clones--get-headline-start)
-		 (org-clones--get-headline-end)
-		 '(cursor-sensor-functions
-		   font-lock-face
-		   read-only))
-		(remove-list-of-text-properties
-		 (org-clones--get-body-start)
-		 (org-clones--get-body-end)
-		 '(cursor-sensor-functions
-		   font-lock-face
-		   read-only))		
+		(org-clones--remove-clone-effects)
 		(org-clones--put-clone-effects))))))
 
 ;;;; Cursor-sensor-functions
@@ -823,11 +794,12 @@ SOURCE-POINT is a marker for the location of the source node"
 (defun org-clones-demo-edit-mode ()
   "Overlay keymap version."
   (setq org-clones-clone-overlay-props
-	'(keymap org-clones-overlay-map))
+	`(keymap ,org-clones-overlay-map
+		 face (:background "purple")))
   ;;(face . (:box t :background "pink" :foreground "black"))))
   (setq org-clones-clone-headline-text-props nil)
   (setq org-clones-clone-body-text-props nil)
-  (org-clones--reset-clone-effects))
+  (org-clones--reset-all-clone-effects))
   
 (defun org-clones-demo-sensor-mode ()
   "Sensor version."
@@ -835,8 +807,8 @@ SOURCE-POINT is a marker for the location of the source node"
 	'((cursor-sensor-functions . (org-clones--text-watcher-func-headline-watcher))))
   (setq org-clones-clone-body-text-props
 	'((cursor-sensor-functions . (org-clones--text-watcher-func-body-watcher))))
-  (setq org-clones-clones-overlay-props nil)
-  (org-clones--reset-clone-effects))
+  (setq org-clones-clone-overlay-props nil)
+  (org-clones--reset-all-clone-effects))
 
 ;;;; Footer
 
