@@ -51,6 +51,7 @@ Install these dependencies.
   - There will be a purple background placed on all clone headlines and bodies. This is meant to shock your senses. 
   - Go to the headline or body of one of the nodes. If you are are using the =edit= demo, try to type something. You’ll be asked if you want to edit the clone. Press =y=.
   - Edit it. Press C-c C-c and your edits will be synced to the other clones. The end. 
+- Once you’ve tried one, try the other by running the other of =org-clones-demo-sensor-mode= or =org-clones-demo-edit-mode=
 - Sensor demo:
   - Go to the headline or body of one of the nodes. You’ll see a message in the echo area telling you that you are in a clone. The background color will change. A box will appear. This is also meant to shock your senses. 
   - Edit the text. Move the point outside of the field. All other clones will update. The end.
