@@ -2,6 +2,8 @@ LOOK AWAY. I AM HIDEOUS.
 
 This is in progress so keep your creeper eyes away from it. 
 
+A lot has changed. Do not look at this read me. 
+
 * Ideas for orgmode clones
 
 I want to be able to clone an orgmode heading so that it can appear in different places in an outline. When I edit one of these headings, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.htmlwhich, I wish I could use, but it’s not in Emacs so it is dead to me.
