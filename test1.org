@@ -1,0 +1,16 @@
+* asdfasfd
+* 
+** Dllasdfasdfasdfasdfs 
+:PROPERTIES:
+:ID:       b807dc5b-80d8-439c-afd4-0b295cfc1867
+:ORG-CLONES: 2c5d3ad6-7a64-4e50-add9-9a1263e58b1f f5fec628-da86-449b-ad8b-08ef179fe777
+:END:
+[mkkkk hshhshhshsclone ody]
+
+* The s is a different clone 
+:PROPERTIES:
+:ID:       20de9ba9-76cf-46a1-bd7f-2276be8f59fa
+:ORG-CLONES: a94b0b40-0aae-4175-906f-bbc770ce8363 d332f417-37d6-4a77-bc6c-bab9caf864f4
+:END:
+[sngw
+

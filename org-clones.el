@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 Jeff Filipovits
 
 ;; Author: Jeff Filipovits <jrfilipovits@gmail.com>
-;; URL: http://example.com/package-name.el
+;; URL: http://www.github.com/legalnonsense/org-clones
 ;; Version: 0.1-pre
 ;; Package-Requires: ((emacs "25.2"))
 ;; Keywords: org transclusion clones outline
@@ -46,9 +46,15 @@
 
 ;;;; Usage
 
-;; Run one of these commands:
+;; Run `org-clones-initialize'.
+;; With the cursor on an org heading, run
+;; `org-clones-create-clone'. You have created a clone. 
+;; Edit the clone, and your edits will sync.
+;; Also create clones across files with `org-clones-store-marker'
+;; followed by `org-clones-create-clone-from-marker'.
 
-;; `org-clones-create-clone' when the point is on a node you wish to clone
+;; See http://www.github.com/legalnonsense/org-clones for more
+;; information. 
 
 ;;;; Tips
 
@@ -92,6 +98,12 @@
   "String prepended to the headline of a cloned node."
   :group 'org-clones
   :type 'string)
+
+(defcustom org-clones-clone-headline-overlay-props
+  `(before-string ,org-clones-clone-prefix-string)
+  "Overlays place on each clone."
+  :group 'org-clones
+  :type 'plist)
 
 (defcustom org-clones-empty-body-string "[empty clone body]\n"
   "Place holder inserted into clones with empty bodies.
@@ -333,29 +345,48 @@ place text properties and overlays in the cloned nodes."
 		  org-clones-empty-body-string
 		(org-clones--get-body-string))))
 
-    ;; Replace the headline in the current node to ensure
-    ;; there aren't differences in white space between the nodes
+    ;; Replace the body in the current node to normalize
+    ;; whitespace 
     (org-clones--replace-body body)
-    (org-clones--put-text-properties)
+    (org-clones--put-clone-effects)
     (org-clones--iterate-over-clones
      (org-clones--remove-clone-effects)
      (org-clones--replace-headline headline)
      (org-clones--replace-body body)
-     (org-clones--put-text-properties))))
-
-;; FIX ME: This does not remove the clones from the current node
-(defun org-clones--unsync-this-clone ()
-  (let ((this-id (org-id-get))
-	(clone-ids (org-clones--get-clone-ids)))
-    (cl-loop for clone-id in clone-ids
-	     do (org-clones--with-point-at-id clone-id
-		  (org-entry-remove-from-multivalued-property
-		   (point) "ORG-CLONES" this-id)
-		  (unless (org-clones--get-clone-ids)
-		    (org-clones--remove-clone-effects))))
-    (message "This node is no longer synced with other clones.")))
+     (org-clones--put-clone-effects))))
 
 ;;; Text properties and overlays 
+
+(defun org-clones--put-overlays ()
+  "Put overlays in `org-clones-clone-overlay-props' on the current node." 
+  (org-clones--remove-overlays)
+  (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
+					(org-clones--get-headline-end)))
+	(len (length org-clones-clone-headline-overlay-props))
+	(i 0))
+    (while (< i len)
+      (overlay-put headline-overlay
+		   (nth i org-clones-clone-headline-overlay-props)
+		   (nth (1+ i) org-clones-clone-headline-overlay-props))
+      (setq i (+ i 2)))
+    headline-overlay))
+
+(defun org-clones--remove-overlays ()
+  "Remove the overlays in `org-clones-clone-overlay-props' from the current node."
+  (ov-clear (org-clones--get-headline-start)
+	    (org-clones--get-headline-end)))
+
+(defun org-clones--put-clone-effects ()
+  "Put overlay and text properties at the current
+node."
+  (org-clones--put-text-properties)
+  (org-clones--put-overlays))
+
+(defun org-clones--remove-clone-effects ()
+  "Remove overlay and text properties at the current
+node."
+  (org-clones--remove-text-properties)
+  (org-clones--remove-overlays))
 
 (defun org-clones--put-text-properties ()
   "Make the node at point read-only, for the purposes
@@ -372,42 +403,75 @@ of locking edits of the headline and body."
    for (prop . val) in org-clones-clone-body-text-props
    do (put-text-property beg end prop val)))
 
-(defun org-clones--put-overlays ()
+(defun org-clones--put-headline-overlays ()
+  "Put overlays in `org-clones-clone-overlay-props' on the current node." 
+  (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
+					(org-clones--get-headline-end)))
+	(len (length org-clones-clone-overlay-props))
+	(i 0))
+    ;; (overlay-put headline-overlay 'org-clones-id id)
+    ;; (overlay-put body-overlay 'org-clones-id id)
+    (while (< i len)
+      (overlay-put headline-overlay
+		   (nth i org-clones-clone-overlay-props)
+		   (nth (1+ i) org-clones-clone-overlay-props))
+      (setq i (+ i 2)))
+    headline-overlay))
+
+(defun org-clones--put-body-overlays ()
+  (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
+					(org-clones--get-headline-end)))
+	(len (length org-clones-clone-overlay-props))
+	(i 0))
+    ;; (overlay-put headline-overlay 'org-clones-id id)
+    ;; (overlay-put body-overlay 'org-clones-id id)
+    (while (< i len)
+      (overlay-put headline-overlay
+		   (nth i org-clones-clone-overlay-props)
+		   (nth (1+ i) org-clones-clone-overlay-props))
+      (setq i (+ i 2)))
+    headline-overlay))
+
+(defun org-clones--remove-overlays ()
+  "Remove the overlays in `org-clones-clone-overlay-props' from the current node."
+  (ov-clear (org-clones--get-headline-start)
+	    (org-clones--get-headline-end))
+  (ov-clear (org-clones--get-body-start)
+	    (org-clones--get-body-end)))
 
 (defun org-clones--put-all-clone-effects ()
   "Clear all overlays and text properties that might have been set 
 previously. Place a new set of overlays and text properties at each
 node with a ORG-CLONES property."
-  ;; `org-ql' caching fucks me up every time:
+  ;; TODO: Write an alternative using `org-map-entires'
+  ;; `org-ql' caching fucks me up every time.
   (setq org-ql-cache (make-hash-table :weakness 'key))
   (org-with-wide-buffer
    (org-ql-select (current-buffer)
      '(property "ORG-CLONES")
      :action (lambda ()
 	       (org-clones--iterate-over-clones
-		(org-clones--put-text-properties))))))
+		(org-clones--put-clone-effects))))))
 
 (defun org-clones--remove-all-clone-effects ()
   "Remove clone effects from all clones."
+  ;; TODO: Write an alternative using `org-map-entires'
   (setq org-ql-cache (make-hash-table :weakness 'key))
   (org-with-wide-buffer
    (org-ql-select (current-buffer)
      '(property "ORG-CLONES")
      :action (lambda ()
 	       (org-clones--iterate-over-clones
-		(org-clones--remove-text-properties))))))
+		(org-clones--put-clone-effects))))))
 
 (defun org-clones--remove-text-properties ()
   "Remove text properties for the current node."
-  ;; It's possible there is a read-only property here...
-  (let ((inhibit-read-only t))
-    (set-text-properties (org-clones--get-headline-start)
-			 (org-clones--get-headline-end)
-			 nil)
-    (set-text-properties (org-clones--get-body-start)
-			 (org-clones--get-body-end)
-			 nil)))
-
+  (set-text-properties (org-clones--get-headline-start)
+		       (org-clones--get-headline-end)
+		       nil)
+  (set-text-properties (org-clones--get-body-start)
+		       (org-clones--get-body-end)
+		       nil))
 
 ;;;; Cursor-sensor-functions
 
@@ -452,16 +516,14 @@ See `cursor-sensor-mode' for more details."
 	   (setq ,var-name nil)
 	 (defvar ,var-name nil))
        (defun ,function-name (window last-pos entered-or-left)
-	 ;; Banged my head against the keyboard many
-	 ;; times before realizing this let has to be here.
 	 (let ((cursor-sensor-inhibit t))
 	   (pcase entered-or-left
 	     (`entered
 	      (setq ,var-name ,@storage-form)
 	      ,@enter)
 	     (`left
-	      ;; Probably a better way to handle these
-	      ;; save-excursions.
+	      ;; There's probably a cleaner way to handle
+	      ;; these save-excursions.
 	      (save-excursion
 		(goto-char last-pos)
 		,@exit)
@@ -484,8 +546,8 @@ See `cursor-sensor-mode' for more details."
 
 (org-clones--create-text-watcher headline-watcher
   :enter ((message "Entered cloned headline!")
-	  ;; There are better ways to handle this overlay
-	  ;; but this is just a demonstration...
+	  ;; TODO: There are better ways to handle
+	  ;; this overlay
 	  (ov (org-clones--get-headline-start)
 	      (org-clones--get-headline-end)
 	      'face 'org-clones-current-clone
@@ -533,13 +595,13 @@ text property."
   "Ask the user if they want to edit the node
 without syncing the clones. If so, unlink the current 
 clone."
-  (let ((last-nonmenu-event t)) ; otherwise y-or-n-p pop a dialog box
+  (let ((last-nonmenu-event t)) ; otherwise y-or-n-p pops a dialog box
     (if (y-or-n-p "This node has clones. Sync your changes to all clones?")
 	(progn (org-clones--update-clones)
 	       (message "Clones updated."))
       (if (y-or-n-p "You don't want to update? Fine. Unsync this clone?")
 	  (progn 
-	    (org-clones--unsync-this-clone)
+	    (org-clones-unsync-this-clone)
 	    (message "Removed this node from the clone list."))
 	(if (y-or-n-p "Don't want to sync; don't want to unsync. Return node to its previous state?")
 	    (org-clones--discard-edit)
@@ -549,7 +611,6 @@ clone."
 (defun org-clones--discard-edit ()
   "Discard the current edit and restore the node
 to its previous state, and turn off the minor mode."
-  (interactive)
   (org-clones--replace-headline
    (car org-clones--restore-state))
   (org-clones--replace-body
@@ -558,6 +619,19 @@ to its previous state, and turn off the minor mode."
   (org-clones-edit-mode -1))
 
 ;;;; Commands
+
+;; FIX ME: This does not remove the clones from the current node
+(defun org-clones-unsync-this-clone ()
+  (interactive)
+  (let ((this-id (org-id-get))
+	(clone-ids (org-clones--get-clone-ids)))
+    (cl-loop for clone-id in clone-ids
+	     do (org-clones--with-point-at-id clone-id
+		  (org-entry-remove-from-multivalued-property
+		   (point) "ORG-CLONES" this-id)
+		  (unless (org-clones--get-clone-ids)
+		    (org-clones--remove-clone-effects))))
+    (message "This node is no longer synced with other clones.")))
 
 ;;;###autoload
 (defun org-clones-store-marker ()
