@@ -117,6 +117,11 @@ Can be any string other than whitespace."
   :group 'org-clones
   :type 'string)
 
+(defcustom org-clones-prompt-before-syncing t
+  "Whether to prompt the user before syncing changes to a clone."
+  :group 'org-clones
+  :type 'boolean)
+
 ;;;; Variables
 
 (defvar org-clones-clone-headline-text-props
@@ -334,7 +339,7 @@ nil if there are none."
   "Prompt user for a node and move to it."
   (org-goto))
 
-(defun org-clones--update-clones ()
+(defun org-clones--sync-clones ()
   "Update all clones of the current node to match
 the headline and body of the current node and
 place text properties and overlays in the cloned nodes."
@@ -344,16 +349,16 @@ place text properties and overlays in the cloned nodes."
 	(body (if (string= "" (org-clones--get-body-string))
 		  org-clones-empty-body-string
 		(org-clones--get-body-string))))
-
-    ;; Replace the body in the current node to normalize
-    ;; whitespace 
+    ;; Replace the body in the current node to 
+    ;; normalize whitespace 
     (org-clones--replace-body body)
     (org-clones--put-clone-effects)
     (org-clones--iterate-over-clones
      (org-clones--remove-clone-effects)
      (org-clones--replace-headline headline)
      (org-clones--replace-body body)
-     (org-clones--put-clone-effects))))
+     (org-clones--put-clone-effects)))
+  (message "Clones updated."))
 
 ;;; Text properties and overlays 
 
@@ -456,6 +461,7 @@ node with a ORG-CLONES property."
 (defun org-clones--remove-all-clone-effects ()
   "Remove clone effects from all clones."
   ;; TODO: Write an alternative using `org-map-entires'
+  ;; `org-ql' caching fucks me up every time.
   (setq org-ql-cache (make-hash-table :weakness 'key))
   (org-with-wide-buffer
    (org-ql-select (current-buffer)
@@ -522,8 +528,7 @@ See `cursor-sensor-mode' for more details."
 	      (setq ,var-name ,@storage-form)
 	      ,@enter)
 	     (`left
-	      ;; There's probably a cleaner way to handle
-	      ;; these save-excursions.
+	      ;; TODO: clean up these save-excursions
 	      (save-excursion
 		(goto-char last-pos)
 		,@exit)
@@ -554,7 +559,7 @@ See `cursor-sensor-mode' for more details."
 	      'priority 10)
 	  (org-clones--begin-edit))
   :exit ((ov-clear 'face 'org-clones-current-clone))
-  :change ((org-clones--prompt-before-commit))
+  :change ((org-clones--prompt-before-syncing))
   :storage-form ((org-clones--get-headline-string)))
 
 (org-clones--create-text-watcher body-watcher
@@ -565,7 +570,7 @@ See `cursor-sensor-mode' for more details."
 	      'priority 10)
 	  (org-clones--begin-edit))
   :exit ((ov-clear 'face 'org-clones-current-clone))
-  :change ((org-clones--prompt-before-commit))
+  :change ((org-clones--prompt-before-syncing))
   :storage-form ((org-clones--get-body-string)))
 
 (defun org-clones--cursor-sensor-mode-check ()
@@ -578,9 +583,7 @@ text property."
 	  (next-single-property-change
 	   (point-min)
 	   'cursor-sensor-functions)))
-      ;; If so, enable cursor-sensor-mode...
       (cursor-sensor-mode 1)
-    ;; ...otherwise, disable it. 
     (cursor-sensor-mode -1)))
 
 ;;;; Editing clones
@@ -591,22 +594,21 @@ text property."
 	(cons (org-clones--get-headline-string)
 	      (org-clones--get-body-string))))
 
-(defun org-clones--prompt-before-commit ()
+(defun org-clones--prompt-before-syncing ()
   "Ask the user if they want to edit the node
 without syncing the clones. If so, unlink the current 
 clone."
-  (let ((last-nonmenu-event t)) ; otherwise y-or-n-p pops a dialog box
-    (if (y-or-n-p "This node has clones. Sync your changes to all clones?")
-	(progn (org-clones--update-clones)
-	       (message "Clones updated."))
-      (if (y-or-n-p "You don't want to update? Fine. Unsync this clone?")
-	  (progn 
+  (if (not org-clones-prompt-before-syncing)
+      (org-clones--sync-clones)
+    ;; otherwise y-or-n-p pops a dialog box
+    (let ((last-nonmenu-event t)) 
+      (if (y-or-n-p "This node has clones. Sync your changes to all clones?")
+	  (org-clones--sync-clones)
+	(if (y-or-n-p "Unsync this clone?")
 	    (org-clones-unsync-this-clone)
-	    (message "Removed this node from the clone list."))
-	(if (y-or-n-p "Don't want to sync; don't want to unsync. Return node to its previous state?")
-	    (org-clones--discard-edit)
-	  (message "You have chosen an impossible path. The clones are updated. Fuck off.")
-	  (org-clones--update-clones))))))
+	  (if (y-or-n-p "Discard this edit?")
+	      (org-clones--discard-edit)
+	    (org-clones--prompt-before-syncing)))))))
 
 (defun org-clones--discard-edit ()
   "Discard the current edit and restore the node
