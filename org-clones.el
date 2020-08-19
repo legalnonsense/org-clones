@@ -81,7 +81,7 @@
 
 ;;;; Faces
 
-(defface org-clones-clone-highlight
+(defface org-clones-current-clone
   '((t (:background "orchid" :box t)))
   "Body of cloned nodes."
   :group 'org-clones)
@@ -336,12 +336,13 @@ place text properties and overlays in the cloned nodes."
     ;; Replace the headline in the current node to ensure
     ;; there aren't differences in white space between the nodes
     (org-clones--replace-body body)
-    (org-clones--put-clone-effects)
+    (org-clones--put-text-properties)
     (org-clones--iterate-over-clones
      (org-clones--remove-clone-effects)
      (org-clones--replace-headline headline)
      (org-clones--replace-body body)
-     (org-clones--put-clone-effects))))
+     (org-clones--put-text-properties))))
+
 
 ;; FIX ME
 (defun org-clones--unsync-this-clone ()
@@ -370,6 +371,29 @@ of locking edits of the headline and body."
    with end = (org-clones--get-body-end)
    for (prop . val) in org-clones-clone-body-text-props
    do (put-text-property beg end prop val)))
+
+(defun org-clones--put-all-clone-effects ()
+  "Clear all overlays and text properties that might have been set 
+previously. Place a new set of overlays and text properties at each
+node with a ORG-CLONES property."
+  ;; `org-ql' caching fucks me up every time:
+  (setq org-ql-cache (make-hash-table :weakness 'key))
+  (org-with-wide-buffer
+   (org-ql-select (current-buffer)
+     '(property "ORG-CLONES")
+     :action (lambda ()
+	       (org-clones--iterate-over-clones
+		(org-clones--put-text-properties))))))
+
+(defun org-clones--remove-all-clone-effects ()
+  "Remove clone effects from all clones."
+  (setq org-ql-cache (make-hash-table :weakness 'key))
+  (org-with-wide-buffer
+   (org-ql-select (current-buffer)
+     '(property "ORG-CLONES")
+     :action (lambda ()
+	       (org-clones--iterate-over-clones
+		(org-clones--remove-text-properties))))))
 
 (defun org-clones--remove-text-properties ()
   "Remove text properties for the current node."
@@ -460,19 +484,12 @@ See `cursor-sensor-mode' for more details."
   :enter ((message "Entered cloned headline!")
 	  ;; There are better ways to handle this overlay
 	  ;; but this is just a demonstration...
-	  (org-clones--begin-edit)
 	  (ov (org-clones--get-headline-start)
 	      (org-clones--get-headline-end)
-	      'face '(:background "pink"
-				  :foreground "black"
-				  :box t)
-	      'priority 10))
-  :exit ((ov-clear 'face
-		   '(:background "pink"
-				 :foreground "black"
-				 :box t)
-		   (org-clones--get-headline-start)
-		   (org-clones--get-headline-end)))
+	      'face 'org-clones-current-clone
+	      'priority 10)
+	  (org-clones--begin-edit))
+  :exit ((ov-clear 'face 'org-clones-current-clone))
   :change ((org-clones--prompt-before-commit))
   :storage-form ((org-clones--get-headline-string)))
 
@@ -480,16 +497,10 @@ See `cursor-sensor-mode' for more details."
   :enter ((message "Entered cloned body!")
 	  (ov (org-clones--get-body-start)
 	      (org-clones--get-body-end)
-	      'face '(:background "pink"
-				  :foreground "black"
-				  :box t)
-	      'priority 10))
-  :exit ((ov-clear 'face
-		   '(:background "pink"
-				 :foreground "black"
-				 :box t)
-		   (org-clones--get-body-start)
-		   (org-clones--get-body-end)))
+	      'face 'org-clones-current-clone
+	      'priority 10)
+	  (org-clones--begin-edit))
+  :exit ((ov-clear 'face 'org-clones-current-clone))
   :change ((org-clones--prompt-before-commit))
   :storage-form ((org-clones--get-body-string)))
 
@@ -520,7 +531,6 @@ text property."
   "Ask the user if they want to edit the node
 without syncing the clones. If so, unlink the current 
 clone."
-  (interactive)
   (if (y-or-n-p "This node has clones. Sync your changes to all clones?")
       (progn (org-clones--update-clones)
 	     (message "Clones updated."))
@@ -528,7 +538,7 @@ clone."
 	(progn 
 	  (org-clones--unsync-this-clone)
 	  (message "Removed this node from the clone list."))
-      (if (y-or-n-p "Return node to its previous state?")
+      (if (y-or-n-p "Don't want to sync; don't want to unsync. Return node to its previous state?")
 	  (org-clones--discard-edit)
 	(message "You have chosen an impossible path. The clones are updated. Fuck off.")
 	(org-clones--update-clones)))))
@@ -614,10 +624,6 @@ SOURCE-POINT is a marker for the location of the source node"
     (org-clones--replace-headline source-headline)
     (org-clones--replace-body source-body)
     (org-clones--put-clone-effects)))
-
-(defun org-clones--put-clone-effects ()
-  "Do whatever is necessary to colorize the clones."
-  nil)
 
 ;;;###autoload
 (defun org-clones-initialize ()
