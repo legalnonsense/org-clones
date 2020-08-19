@@ -123,11 +123,11 @@ to restore if the edit is abandoned.")
   "Temporary storage for a marker for clone creation in 
 separate file.")
 
-(defvar org-clones--headline-re "^*+ " ; outline-regexp
+(defvar org-clones--headline-re "^*+ "
   "Org headline regexp.")
 
 (defvar org-clones--not-whitespace-re "[^[:space:]]"
-  "Regexp to match any non-whitespace charcter.")
+  "Regexp matching any non-whitespace charcter.")
 
 ;;;; Macros
 
@@ -343,8 +343,7 @@ place text properties and overlays in the cloned nodes."
      (org-clones--replace-body body)
      (org-clones--put-text-properties))))
 
-
-;; FIX ME
+;; FIX ME: This does not remove the clones from the current node
 (defun org-clones--unsync-this-clone ()
   (let ((this-id (org-id-get))
 	(clone-ids (org-clones--get-clone-ids)))
@@ -357,6 +356,7 @@ place text properties and overlays in the cloned nodes."
     (message "This node is no longer synced with other clones.")))
 
 ;;; Text properties and overlays 
+
 (defun org-clones--put-text-properties ()
   "Make the node at point read-only, for the purposes
 of locking edits of the headline and body."
@@ -371,6 +371,8 @@ of locking edits of the headline and body."
    with end = (org-clones--get-body-end)
    for (prop . val) in org-clones-clone-body-text-props
    do (put-text-property beg end prop val)))
+
+(defun org-clones--put-overlays ()
 
 (defun org-clones--put-all-clone-effects ()
   "Clear all overlays and text properties that might have been set 
@@ -531,17 +533,18 @@ text property."
   "Ask the user if they want to edit the node
 without syncing the clones. If so, unlink the current 
 clone."
-  (if (y-or-n-p "This node has clones. Sync your changes to all clones?")
-      (progn (org-clones--update-clones)
-	     (message "Clones updated."))
-    (if (y-or-n-p "You don't want to update? Fine. Unsync this clone?")
-	(progn 
-	  (org-clones--unsync-this-clone)
-	  (message "Removed this node from the clone list."))
-      (if (y-or-n-p "Don't want to sync; don't want to unsync. Return node to its previous state?")
-	  (org-clones--discard-edit)
-	(message "You have chosen an impossible path. The clones are updated. Fuck off.")
-	(org-clones--update-clones)))))
+  (let ((last-nonmenu-event t)) ; otherwise y-or-n-p pop a dialog box
+    (if (y-or-n-p "This node has clones. Sync your changes to all clones?")
+	(progn (org-clones--update-clones)
+	       (message "Clones updated."))
+      (if (y-or-n-p "You don't want to update? Fine. Unsync this clone?")
+	  (progn 
+	    (org-clones--unsync-this-clone)
+	    (message "Removed this node from the clone list."))
+	(if (y-or-n-p "Don't want to sync; don't want to unsync. Return node to its previous state?")
+	    (org-clones--discard-edit)
+	  (message "You have chosen an impossible path. The clones are updated. Fuck off.")
+	  (org-clones--update-clones))))))
 
 (defun org-clones--discard-edit ()
   "Discard the current edit and restore the node
