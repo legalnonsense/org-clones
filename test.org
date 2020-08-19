@@ -1,14 +1,28 @@
-* Dlkksllls 
+* Dlls 
 :PROPERTIES:
 :ID:       2c5d3ad6-7a64-4e50-add9-9a1263e58b1f
 :ORG-CLONES: f5fec628-da86-449b-ad8b-08ef179fe777 b807dc5b-80d8-439c-afd4-0b295cfc1867
 :END:
-[emkkkkkkkkkkkkkkkkkkkkkkkkkkkk hshhshhshsclone ody]
+[emkkI am changing this node!!!kkkkkkkkkkkkkkkkkkkkkkkkkk hshhshhshsclone ody]
 
-* Dlkksllls 
+* Dlls 
 :PROPERTIES:
 :ID:       f5fec628-da86-449b-ad8b-08ef179fe777
 :ORG-CLONES: b807dc5b-80d8-439c-afd4-0b295cfc1867 2c5d3ad6-7a64-4e50-add9-9a1263e58b1f
 :END:
-[emkkkkkkkkkkkkkkkkkkkkkkkkkkkk hshhshhshsclone ody]
+[emkkI am changing this node!!!kkkkkkkkkkkkkkkkkkkkkkkkkk hshhshhshsclone ody]
+
+* Thithis is a different clone s is a different clone 
+:PROPERTIES:
+:ID:       d332f417-37d6-4a77-bc6c-bab9caf864f4
+:ORG-CLONES: a94b0b40-0aae-4175-906f-bbc770ce8363
+:END:
+[sthing new
+
+* Thithis is a different clone s is a different clone 
+:PROPERTIES:
+:ID:       a94b0b40-0aae-4175-906f-bbc770ce8363
+:ORG-CLONES: d332f417-37d6-4a77-bc6c-bab9caf864f4
+:END:
+[sthing new
 
