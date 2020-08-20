@@ -40,34 +40,19 @@ I use the following words to describe the following things:
 Install these dependencies. 
 - [[https://github.com/ndwarshuis/org-ml][org-ml]] (hopefully temporary)
 - [[https://github.com/alphapapa/org-ql][org-ql]] (maybe temporary)
-- [[https://github.com/emacsorphanage/ov][ov]] (definitely temporary)
 * Usage
-- Open a new org file.
-- Create a heading. 
-- Run either =org-clones-demo-sensor-mode= or =org-clones-demo-edit-mode= depending on which one you want to try first. 
-- =M-x= =org-clones-create-clone=
-- You’ll be prompted to pick the source node via =org-goto=. Pick the node you just created.
-- Now you have a clone. If you create a clone of a node with a blank body, a place holder will be inserted because otherwise the text properties and overlays become unmanageable. 
-- Save the buffer. (Otherwise =org-id= won’t be able to find the headings.)
-- Edit demo:
-  - There will be a purple background placed on all clone headlines and bodies. This is meant to shock your senses. 
-  - Go to the headline or body of one of the nodes. If you are are using the =edit= demo, try to type something. You’ll be asked if you want to edit the clone. Press =y=.
-  - Edit it. Press C-c C-c and your edits will be synced to the other clones. The end. 
-- Once you’ve tried one, try the other by running the other of =org-clones-demo-sensor-mode= or =org-clones-demo-edit-mode=
-- Sensor demo:
-  - Go to the headline or body of one of the nodes. You’ll see a message in the echo area telling you that you are in a clone. The background color will change. A box will appear. This is also meant to shock your senses. 
-  - Edit the text. Move the point outside of the field. All other clones will update. The end.
-* What feedback do you want?
-First, thank you for testing and reading this far. Here are the questions on my mind:
-1. Which is the better way to do this: cursor-sensor-functions or keymapped overlays? I learn toward the cursor-sensor method, but like the clarity of having an “editing mode” akin to a capture buffer. Should it be a hybrid?
-2. If the answer is the overlay and keymap, how do I make a keymap that grabs anything that might edit the node? Do I need to remap every conceivable way to edit the node? Should something pop up to alert the user if they are on a clone?
-3. Does anyone use =cursor-sensor-mode= who can speak to how much it slows things down? 
-4. What if clones do not match (because something went wrong with syncing, or whatever)? How to handle conflicts, if at all?
-5. I thought that properties, todo state, and tags should not be part of a clone; i.e., the only thing synced is the headline and body of the node. Agree or disagree?
-6. The cursor sensor macro would be easy to expand for transclusion outside of orgmod. I barely use emacs except for orgmode. Does anyone think this method would be valuable? 
-* Problems
-- [ ] Strange cursor movement when you move upward out of a headline into a clone. Needs a save-excursion somewhere but I don’t know where.
-- [ ] 
+* Task list
+- [ ] Write functions to jump to next clone
+- [ ] Clean up overlay and text properties
+- [ ] When the point enters a sensor field, add a space to be able to add to the end of the field (or figure out another solution)
+- [X] Remove =org-ql=
+- [ ] Remove =org-ml=
+- [ ] Remove =ov=
+- [ ] Fix putting all clone effects on startup so it is properly recursive 
+- [ ] Fix =org-clones--goto-body-start= to skip closing note logs
+- [ ] Figure out how to handle having multiple buffers open
+
+
 * Other transclusion efforts
 Here are some other transclusion efforts or discussions of such efforts:
 
