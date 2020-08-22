@@ -523,14 +523,15 @@ See `cursor-sensor-mode' for more details."
        (if (boundp ',var-name)
 	   (setq ,var-name nil)
 	 (defvar ,var-name nil))
-       (defun ,function-name (window last-pos entered-or-left)
+       (defun ,function-name (_window last-pos entered-or-left)
 	 (let ((cursor-sensor-inhibit t))
 	   (pcase entered-or-left
 	     (`entered
 	      (setq ,var-name ,@storage-form)
 	      ,@enter)
 	     (`left
-	      ;; TODO: clean up these save-excursions
+	      ;; These save excursions needs to be separate because
+	      ;; the user functions could move the point.
 	      (save-excursion
 		(goto-char last-pos)
 		,@exit)
@@ -553,7 +554,6 @@ See `cursor-sensor-mode' for more details."
 
 (org-clones--create-text-watcher clone-watcher
   :enter ((message "Entered cloned!")
-	  window ;; Kill the byte-compiler warning for unused lexical variable
 	  (let (beg end)
 	    (cond ((org-clones--at-headline-p)
 		   (setq beg (org-clones--get-headline-start))
