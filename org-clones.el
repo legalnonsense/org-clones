@@ -478,7 +478,7 @@ is non-nil, then remove FUNC from the cursor-sensor-functions property."
 	       ((guard (equal func func-list)) nil)
 	       (_ func-list))
 	   (pcase func-list
-	     ((pred null) func)
+	     ((pred null) (list func))
 	     ((pred listp) (cl-pushnew func func-list))
 	     (_ (if (equal func-list func)
 		    func
@@ -553,6 +553,7 @@ See `cursor-sensor-mode' for more details."
 
 (org-clones--create-text-watcher clone-watcher
   :enter ((message "Entered cloned!")
+	  window ;; Kill the byte-compiler warning for unused lexical variable
 	  (let (beg end)
 	    (cond ((org-clones--at-headline-p)
 		   (setq beg (org-clones--get-headline-start))
