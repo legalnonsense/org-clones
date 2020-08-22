@@ -46,12 +46,15 @@
 
 ;;;; Usage
 
-;; Run `org-clones-initialize'.
+;; Add `org-clones-initialize' to your org-mode hook.
 ;; With the cursor on an org heading, run
 ;; `org-clones-create-clone'. You have created a clone. 
 ;; Edit the clone, and your edits will sync.
-;; Also create clones across files with `org-clones-store-marker'
-;; followed by `org-clones-create-clone-from-marker'.
+;; You can also create clones across files with 
+;; `org-clones-store-marker' at an org heading and
+;; running `org-clones-create-clone-from-marker'
+;; at the location (of any file) where you want the
+;; clone. 
 
 ;; See http://www.github.com/legalnonsense/org-clones for more
 ;; information. 
@@ -99,38 +102,38 @@ node (i.e., headline or body."
   :type 'string)
 
 (defcustom org-clones-clone-headline-overlay-props
-  `(before-string ,org-clones-clone-prefix-string)
+  `(before-string ,org-clones-clone-prefix-string
+		  org-clones-headline-overlay t
+		  evaporate t)
   "Overlays placed on each clone, regardless of whether the 
-cursor is a the clone."
+cursor is on the cloned node."
   :group 'org-clones
   :type 'plist)
 
 (defcustom org-clones-empty-body-string "[empty clone body]\n"
   "Place holder inserted into clones with empty bodies.
-Can be any string other than whitespace. Must end with a newline."
+Can be any string other than whitespace. Must end with a newline.
+Must be a string other than whitespace."
   :group 'org-clones
   :type 'string)
 
 (defcustom org-clones-empty-headling-string "[empty clone headline]"
   "Place holder inserted into clones with empty headlines.
-Can be any string other than whitespace."
+Must be a string other than whitespace."
   :group 'org-clones
   :type 'string)
 
 (defcustom org-clones-prompt-before-syncing t
-  "Whether to prompt the user before syncing changes to a clone."
+  "Whether to prompt the user before syncing changes to all clones."
   :group 'org-clones
   :type 'boolean)
 
 ;;;; Variables
 
-(defvar org-clones-clone-headline-text-props
-  '((cursor-sensor-functions . (org-clones--text-watcher-func-headline-watcher)))
-  "List of text properties applied to the headline of cloned nodes.")
-
-(defvar org-clones-clone-body-text-props
-  '((cursor-sensor-functions . (org-clones--text-watcher-func-body-watcher)))
-  "List of text properties applied to the body of cloned nodes.")
+(defvar org-clones-cursor-sensor-functions
+  '(org-clones--text-watcher-func-clone-watcher)
+  "List of cursor-sensor-functions to apply to the headline
+and body of cloned nodes.")
 
 (defvar org-clones--restore-state nil
   "When editing a clone, save the current headline and body
@@ -139,15 +142,16 @@ to restore if the edit is abandoned.")
 (defvar org-clones--temp-marker nil
   "Temporary storage for a marker for clone creation.")
 
+(defvar org-clones--temp-overlay nil
+  "Temporary holder for the transient headline 
+or body overlay.")
+(make-local-variable 'org-clones--temp-overlay)
+
 (defvar org-clones--headline-re "^*+ "
   "Org headline regexp.")
 
 (defvar org-clones--not-whitespace-re "[^[:space:]]"
   "Regexp matching any non-whitespace charcter.")
-
-(defvar org-clones--temp-overlay nil
-  "Temporary holder for temporary headline overlay.")
-(make-local-variable 'org-clones--temp-overlay)
 
 ;;;; Macros
 
@@ -165,10 +169,10 @@ to restore if the edit is abandoned.")
 		     ,@body)))))
 
 (defmacro org-clones--iterate-over-all-clones-in-buffer (&rest body)
-  "Execute BODY at any clone which has an :ORG-CLONES: property, in 
-the buffer (but do not iterate over clones outside the buffer."
+  "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, in 
+the buffer (but do not iterate over clones outside the buffer)."
   ;; This method appears to be faster than `org-ql' and
-  ;; is much faster than `org-map-entries'.
+  ;; is *much* faster than `org-map-entries'.
   `(save-excursion
      (goto-char (point-min))
      (while (re-search-forward org-property-drawer-re nil t)
@@ -226,6 +230,12 @@ tag line."
 before the ellipsis."
   (save-excursion (org-clones--goto-headline-end)))
 
+(defun org-clones--at-headline-p ()
+  "Is the point inside a headline?"
+  (and (outline-on-heading-p t)
+       (<= (point) (org-clones--get-headline-end))
+       (>= (point) (org-clones--get-headline-start))))
+
 (defun org-clones--delete-headline ()
   "Delete the headline of the heading at point."
   (org-clones--inhibit-read-only
@@ -251,10 +261,15 @@ TODO state, headline text, and tags."
 ;; TODO re-write this to get rid of org-ml
 (defun org-clones--replace-headline (headline)
   "Replace the headline text at point with HEADLINE"
-  ;; I don't like using `org-ml' just for this one function
-  ;; but it works so well!
   (org-ml-update-this-headline*
     (org-ml-set-property :title `(,(concat headline " ")) it)))
+
+;;;; Body functions 
+
+(defun org-clones--insert-blank-body ()
+  "Insert `org-clones-empty-body-string' into the body 
+of the current node."
+  (org-clones--replace-body org-clones-empty-body-string))
 
 (defun org-clones--get-body-end ()
   "Get the end point of the body of the current node."
@@ -264,13 +279,6 @@ TODO state, headline text, and tags."
   "Does this node have a body (i.e., a section in org-element
 parlance?"
   (org-clones--parse-body))
-
-;;;; Body functions 
-
-(defun org-clones--insert-blank-body ()
-  "Insert `org-clones-empty-body-string' into the body 
-of the current node."
-  (org-clones--replace-body org-clones-empty-body-string))
 
 (defun org-clones--goto-body-start ()
   "Go to the start of the body of the current node,
@@ -292,6 +300,13 @@ and return the point."
   (re-search-backward org-clones--not-whitespace-re
 		      nil t)
   (goto-char (match-end 0)))
+
+(defun org-clones--at-body-p ()
+  "Is the point inside the body of a node?"
+  (when-let ((start (org-clones--get-body-start))
+	     (end (org-clones--get-body-end)))
+    (and (<= (point) end)
+	 (>= (point) start))))
 
 (defun org-clones--replace-body (body)
   "Replace the body of the current node with
@@ -352,7 +367,7 @@ nil if there are none."
   (not (or (save-excursion (org-get-next-sibling))
 	   (save-excursion (org-goto-first-child)))))
 
-(defun org-clones--prompt-for-source-and-move ()
+(defun org-clones--prompt-for-source-node-and-move ()
   "Prompt user for a node and move to it."
   (org-goto))
 
@@ -379,9 +394,9 @@ place text properties and overlays in the cloned nodes."
 
 ;;; Text properties and overlays 
 
-(defun org-clones--put-overlays ()
-  "Put overlays in `org-clones-clone-overlay-props' on the current node." 
-  (org-clones--remove-overlays)
+(defun org-clones--put-headline-overlay ()
+  "Put overlays in `org-clones-clone-headline-overlay-props' on the current node." 
+  (org-clones--remove-headline-overlay)
   (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
 					(org-clones--get-headline-end)))
 	(len (length org-clones-clone-headline-overlay-props))
@@ -391,97 +406,87 @@ place text properties and overlays in the cloned nodes."
 		   (nth i org-clones-clone-headline-overlay-props)
 		   (nth (1+ i) org-clones-clone-headline-overlay-props))
       (setq i (+ i 2)))
+    ;; So we can find it later...
     headline-overlay))
 
-(defun org-clones--remove-overlays ()
-  "Remove the overlays in `org-clones-clone-overlay-props' from the 
+(defun org-clones--remove-headline-overlay ()
+  "Remove the overlays in `org-clones-clone-headline-overlay-props' from the 
 current node."
-  (ov-clear (org-clones--get-headline-start)
-	    (org-clones--get-headline-end)))
+  (org-with-wide-buffer
+   (remove-overlays (org-clones--get-headline-start)
+		    (org-clones--get-headline-end)
+		    'org-clones-headline-overlay t)))
+
+(defun org-clones--put-cursor-sensor-props (&optional remove)
+  "Remove `org-clones-cursor-sensor-functions' from the the current node."
+  (cl-loop for start in `(,(org-clones--get-headline-start)
+			  ,(org-clones--get-body-start))
+	   for end in `(,(org-clones--get-headline-end)
+			,(org-clones--get-body-end))
+	   do (cl-loop for func in org-clones-cursor-sensor-functions
+		       do (org-clones--change-cursor-sensor-prop
+			   start end func remove))))
+
+(defun org-clones--remove-cursor-sensor-props ()
+  "Remove `org-clones-cursor-sensor-functions' from the headline and 
+body of the current node."
+  (org-clones--put-cursor-sensor-props 'remove))
 
 (defun org-clones--put-clone-effects ()
   "Put overlay and text properties at the current
 node."
-  (org-clones--put-text-properties)
-  (org-clones--put-overlays))
+  (org-clones--put-cursor-sensor-props)
+  (org-clones--put-headline-overlay))
 
 (defun org-clones--remove-clone-effects ()
   "Remove overlay and text properties at the current
 node."
-  (org-clones--remove-text-properties)
-  (org-clones--remove-overlays))
+  (org-clones--remove-cursor-sensor-props)
+  (org-clones--remove-headline-overlay))
 
-(defun org-clones--put-text-properties ()
-  "Put properties in `org-clones-clone-headline-text-props'
-and `org-clones-clone-body-text-props' at the current node."
-  (cl-loop
-   with beg = (org-clones--get-headline-start)
-   with end = (org-clones--get-headline-end)
-   for (prop . val) in org-clones-clone-headline-text-props
-   do (put-text-property beg end prop val))
+(defun org-clones--reset-clone-effects ()
+  (org-clones--remove-cursor-sensor-props)
+  (org-clones--put-clone-effects))
 
-  (cl-loop
-   with beg = (org-clones--get-body-start)
-   with end = (org-clones--get-body-end)
-   for (prop . val) in org-clones-clone-body-text-props
-   do (put-text-property beg end prop val)))
+;;;; Emergency functions
 
-(defun org-clones--put-headline-overlays ()
-  "Put overlays in `org-clones-clone-overlay-props' on the current node." 
-  (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
-					(org-clones--get-headline-end)))
-	(len (length org-clones-clone-overlay-props))
-	(i 0))
-    ;; (overlay-put headline-overlay 'org-clones-id id)
-    ;; (overlay-put body-overlay 'org-clones-id id)
-    (while (< i len)
-      (overlay-put headline-overlay
-		   (nth i org-clones-clone-overlay-props)
-		   (nth (1+ i) org-clones-clone-overlay-props))
-      (setq i (+ i 2)))
-    headline-overlay))
-
-(defun org-clones--put-body-overlays ()
-  (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
-					(org-clones--get-headline-end)))
-	(len (length org-clones-clone-overlay-props))
-	(i 0))
-    ;; (overlay-put headline-overlay 'org-clones-id id)
-    ;; (overlay-put body-overlay 'org-clones-id id)
-    (while (< i len)
-      (overlay-put headline-overlay
-		   (nth i org-clones-clone-overlay-props)
-		   (nth (1+ i) org-clones-clone-overlay-props))
-      (setq i (+ i 2)))
-    headline-overlay))
-
-;; (defun org-clones--put-all-clone-effects ()
-;;   "Put all clone effets on all clones in buffer."
-;;   (org-clones--iterate-over-all-clones
-;;    (org-clones--iterate-over-clones
-;;     (org-clones--put-clone-effects))))
-
-(defun org-clones--remove-all-clone-effects ()
+(defun org-clones--reset-all-clone-effects-in-buffer ()
   "Remove all clone effets on all clones in buffer."
-  (org-clones--iterate-over-all-clones
-   (org-clones--iterate-over-clones
-    (org-clones--remove-clone-effects))))
+  (org-clones--iterate-over-all-clones-in-buffer
+   (org-clones--remove-clone-effects)
+   (org-clones--put-clone-effects)))
 
-(defun org-clones--remove-text-properties ()
-  "Remove text properties for the current node."
-  (set-text-properties (org-clones--get-headline-start)
-		       (org-clones--get-headline-end)
-		       nil)
-  (set-text-properties (org-clones--get-body-start)
-		       (org-clones--get-body-end)
-		       nil))
+(defun org-clones--remove-all-clone-effects-in-buffer ()
+  "Remove all clone effets on all clones in buffer."
+  (org-clones--iterate-over-all-clones-in-buffer
+   (org-clones--remove-clone-effects)))
 
 ;;;; Cursor-sensor-functions
+
+(defun org-clones--change-cursor-sensor-prop (beg end func &optional remove)
+  "Add FUNC to the list of cursor-sensor-functions from BEG to END. If REMOVE
+is non-nil, then remove FUNC from the cursor-sensor-functions property."
+  (cl-loop
+   for pos from beg to end
+   do (let ((func-list (get-text-property pos 'cursor-sensor-functions)))
+	(put-text-property
+	 pos (1+ pos) 'cursor-sensor-functions
+	 (if remove
+	     (pcase func-list
+	       ((pred listp)
+		(remq func func-list))
+	       ((guard (equal func func-list)) nil)
+	       (_ func-list))
+	   (pcase func-list
+	     ((pred null) func)
+	     ((pred listp) (cl-pushnew func func-list))
+	     (_ (if (equal func-list func)
+		    func
+		  (list func func-list)))))))))
 
 (cl-defmacro org-clones--create-text-watcher (name &key
 						   enter exit storage-form
 						   change no-change)
-
   "Define a function for use with `cursor-sensor-mode' and the 
 associated text property, cursor-sensor-functions. 
 
@@ -546,25 +551,24 @@ See `cursor-sensor-mode' for more details."
 		  ,@change)
 		(setq ,var-name nil)))))))))
 
-(org-clones--create-text-watcher headline-watcher
-  :enter ((message "Entered cloned headline!")
-	  (move-overlay org-clones--temp-overlay
-			(org-clones--get-headline-start)
-			(org-clones--get-headline-end))
-	  (org-clones--begin-edit))
+(org-clones--create-text-watcher clone-watcher
+  :enter ((message "Entered cloned!")
+	  (let (beg end)
+	    (cond ((org-clones--at-headline-p)
+		   (setq beg (org-clones--get-headline-start))
+		   (setq end (org-clones--get-headline-end)))
+		  ((org-clones--at-body-p)
+		   (setq beg (org-clones--get-body-start))
+		   (setq end (org-clones--get-body-end))))
+	    (move-overlay org-clones--temp-overlay beg end)
+	    (org-clones--begin-edit)))
   :exit ((delete-overlay org-clones--temp-overlay))
   :change ((org-clones--prompt-before-syncing))
-  :storage-form ((org-clones--get-headline-string)))
-
-(org-clones--create-text-watcher body-watcher
-  :enter ((message "Entered cloned body!")
-	  (move-overlay org-clones--temp-overlay
-			(org-clones--get-body-start)
-			(org-clones--get-body-end))
-	  (org-clones--begin-edit))
-  :exit ((delete-overlay org-clones--temp-overlay))
-  :change ((org-clones--prompt-before-syncing))
-  :storage-form ((org-clones--get-body-string)))
+  :no-change ((message "Exited clone with no changes."))
+  :storage-form ((cond ((org-clones--at-headline-p)
+			(org-clones--get-headline-string))
+		       ((org-clones--at-body-p)
+			(org-clones--get-body-string)))))
 
 ;;;; Editing clones
 
@@ -668,7 +672,7 @@ SOURCE-POINT is a marker for the location of the source node"
 	  (with-current-buffer (marker-buffer source-marker)
 	    (source-node-prep))
 	(save-excursion 
-	  (org-clones--prompt-for-source-and-move)
+	  (org-clones--prompt-for-source-node-and-move)
 	  (source-node-prep))))
     ;; For each clone from the source, add new clone id
     (cl-loop for clone-id in source-clone-list
@@ -691,8 +695,9 @@ SOURCE-POINT is a marker for the location of the source node"
 ;;;; Initialization 
 
 (defun org-clones--initialize-temp-overlay ()
-  "Initialize temporary overlay used to highlight
-the clone at point."
+  "Initialize temporary overlay (`org-clones--temp-overlay')
+used to highlight the clone at point. This overlay is reused
+each time the point is in the headline or body of a cloned node."
   (setq org-clones--temp-overlay
 	(make-overlay 1 2 nil nil t))
   (overlay-put org-clones--temp-overlay
@@ -702,20 +707,7 @@ the clone at point."
 (defun org-clones--initialize-overlays-in-buffer ()
   "Put overlays on all clones in current buffer."
   (org-clones--iterate-over-all-clones-in-buffer 
-   (org-clones--put-overlays)))
-
-(defun org-clones--initialize-cursor-sensor-mode ()
-  "Turn `cursor-sensor-mode' on or off depending on
-whether any buffer text has the cursor-sensor-functions
-text property."
-  (if (save-excursion
-	(save-restriction
-	  (widen)		
-	  (next-single-property-change
-	   (point-min)
-	   'cursor-sensor-functions)))
-      (cursor-sensor-mode 1)
-    (cursor-sensor-mode -1)))
+   (org-clones--put-headline-overlay)))
 
 ;;;###autoload
 (define-minor-mode org-clones-mode
@@ -725,9 +717,10 @@ text property."
   nil
   (if org-clones-mode
       (progn
+	(cursor-sensor-mode -1)
 	(org-clones--initialize-temp-overlay)
 	(org-clones--initialize-overlays-in-buffer)
-	(org-clones--initialize-cursor-sensor-mode))))
+	(cursor-sensor-mode 1))))
 
 ;;;; Footer
 
