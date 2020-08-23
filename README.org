@@ -42,18 +42,18 @@ Install these dependencies.
 - [[https://github.com/alphapapa/org-ql][org-ql]] (maybe temporary)
 * Usage
 * Task list
-- [ ] Write functions to jump to next clone
+- [ ] Write functions to jump to next clone [in progress; harder than I thought!]
 - [X] Clean up overlay and text properties
-- [ ] When the point enters a sensor field, add a space to be able to add to the end of the field (or figure out another solution)
+- [X] When the point enters a sensor field, add a space to be able to add to the end of the field [solution was a disaster]
 - [X] Remove =org-ql=
 - [ ] Remove =org-ml=
 - [X] Remove =ov=
-- [ ] Fix putting all clone effects on startup so it is properly recursive 
-- [ ] Fix =org-clones--goto-body-start= to skip closing note logs
-- [ ] Figure out how to handle having multiple buffers open
+- [X] Fix putting all clone effects on startup so it is properly recursive [no recursion; done though enabling mode]
+- [ ] Fix =org-clones--goto-body-start= to skip closing note logs [also harder than I thought]
+- [X] Figure out how to handle having multiple buffers open
 - [X] Get rid of goto-headline-start... and similar functions (only need get- functions) [abandoned]
-- [ ] Fix org-clones--remove-text-properties to remove only the text props at issue
-- [ ] When removing cursor-sensor text properties, only remove our function from the list and preserve any other functions
+- [X] Fix org-clones--remove-text-properties to remove only the text props at issue
+- [X] When removing cursor-sensor text properties, only remove our function from the list and preserve any other functions
 - [X] Fix removing overlays 
 
 

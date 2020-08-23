@@ -87,11 +87,10 @@
 (require 'org-ml)
 
 ;;;; Faces
-
 (defface org-clones-current-clone
-  '((t (:background "orchid" :box (line-width -1))))
+  '((t (:background "orchid" :foreground "black")))
   "Face applied when the point is inside a cloned
-node (i.e., headline or body."
+node (i.e., headline or body)."
   :group 'org-clones)
 
 ;;;; Customization
@@ -344,6 +343,16 @@ e.g., '((paragraph (...))
         (src-block (...)) ...)."
   (cddar (org-clones--parse-body)))
 
+;; (defun org-clones--get-section-elements ()
+;;   "Reduce the section data to the component elements,
+;; e.g., '((paragraph (...))
+;;         (src-block (...)) ...). 
+;; And remove any closing note."
+;;   (let ((elements (cddar (org-clones--parse-body))))
+;;     (when (and (eq (caar elements) 'plain-list)
+
+
+
 (defun org-clones--get-body-section-plist ()
   "Get the plist associated with the section element, 
 e.g. (:begin 1 :end 10 :contents-begin ...)."
@@ -373,6 +382,16 @@ nil if there are none."
 (defun org-clones--prompt-for-source-node-and-move ()
   "Prompt user for a node and move to it."
   (org-goto))
+
+(defun org-clones--fold-property-drawer (&optional unfold)
+  "Fold the property drawer for the heading at point."
+  (save-excursion
+    (org-back-to-heading t)
+    (when (re-search-forward
+	   org-property-drawer-re
+	   (save-excursion (outline-next-heading) (point))
+	   'no-error)
+      (org-flag-drawer (not unfold)))))
 
 (defun org-clones--sync-clones ()
   "Update all clones of the current node to match
@@ -439,7 +458,8 @@ body of the current node."
   "Put overlay and text properties at the current
 node."
   (org-clones--put-cursor-sensor-props)
-  (org-clones--put-headline-overlay))
+  (org-clones--put-headline-overlay)
+  (org-clones--fold-property-drawer))
 
 (defun org-clones--remove-clone-effects ()
   "Remove overlay and text properties at the current
@@ -611,6 +631,51 @@ to its previous state, and turn off the minor mode."
   (message "Org-clones: Discarded edit.")
   (setq org-clones--restore-state nil))
 
+;;;; Navigatig to toher cloes
+
+;; (defvar org-clones--clone-cycle-map
+;;   (let ((map (make-sparse-keymap)))
+;;     (define-key map (kbd "n") #'org-clones-cycle-through-clones-next)
+;;     (define-key map (kbd "p") #'org-clones-cycle-through-clones-previous)
+;;     map)
+;;   "Keymap for clone cycling.")
+
+;; (defvar org-clones--clone-cycle-list nil
+;;   "Temporary storage when cycling through clones.")
+
+;; (defun org-clones-cycle-through-clones-next ()
+;;   (interactive)
+;;   (org-clones-cycle-through-clones))
+
+;; (defun org-clones-cycle-through-clones-previous ()
+;;   (interactive)
+;;   (org-clones-cycle-through-clones 'previous))
+
+
+;; (defun org-clones-cycle-through-clones (&optional previous)
+;;   (unless org-clones--clone-cycle-list
+;;     (setq org-clones--clone-cycle-list
+;; 	  (append (org-clones--get-clone-ids)
+;; 		  (list (org-id-get)))))
+;;   (when org-clones--clone-cycle-list
+;;     (let ((last-pop (if previous
+;; 			(car (nbutlast org-clones--clone-cycle-list))
+;; 		      (pop org-clones--clone-cycle-list)))
+;; 	  (old-header-line header-line-format))
+;;       (setq header-line-format
+;; 	    "Press \"n\" to cycle through clones. Any key to terminate.")
+;;       (set-transient-map org-clones--clone-cycle-map t
+;; 			 (lambda ()
+;; 			   (setq org-clones--clone-cycle-list nil)
+;; 			   (setq header-line-format old-header-line)))
+;;       (org-id-goto last-pop)
+;;       (setq org-clones--clone-cycle-list
+;; 	    (if previous
+;; 		(push last-pop org-clones--clone-cycle-list)
+;; 	      (append org-clones--clone-cycle-list
+;; 		      (list last-pop)))))))
+
+
 ;;;; Commands
 
 ;; FIX ME: This does not remove the clones from the current node
@@ -727,9 +792,11 @@ each time the point is in the headline or body of a cloned node."
 	(cursor-sensor-mode -1)
 	(org-clones--initialize-temp-overlay)
 	(org-clones--initialize-overlays-in-buffer)
+	(org-clones--reset-all-clone-effects-in-buffer)
 	(cursor-sensor-mode 1))
     (org-clones--remove-all-clone-effects-in-buffer)))
 
 ;;;; Footer
 
 (provide 'org-clones)
+
