@@ -248,8 +248,9 @@ before the ellipsis."
 (defun org-clones--get-headline-string ()
   "Get the full text of a headline at point, including
 TODO state, headline text, and tags." 
-  (buffer-substring (org-clones--get-headline-start)
-		    (org-clones--get-headline-end)))
+  (buffer-substring-no-properties
+   (org-clones--get-headline-start)
+   (org-clones--get-headline-end)))
 
 ;; (defun org-clones--replace-headline (headline)
 ;;   "Replace the headline text at point with HEADLINE."
@@ -624,6 +625,8 @@ to its previous state, and turn off the minor mode."
 		   (point) "ORG-CLONES" this-id)
 		  (unless (org-clones--get-clone-ids)
 		    (org-clones--remove-clone-effects))))
+    (org-clones--remove-clone-effects)
+    (org-set-property "ORG-CLONES" "nil")
     (message "This node is no longer synced with other clones.")))
 
 ;;;###autoload
@@ -671,10 +674,11 @@ SOURCE-POINT is a marker for the location of the source node"
 						      clone-id)
 	       (setq source-clone-list (org-clones--get-clone-ids))
 	       (org-clones--put-clone-effects)))
-      (if source-marker
-	  (with-current-buffer (marker-buffer source-marker)
-	    (source-node-prep))
-	(save-excursion 
+      (save-excursion 
+	(if source-marker
+	    (with-current-buffer (marker-buffer source-marker)
+	      (goto-char source-marker)
+	      (source-node-prep))
 	  (org-clones--prompt-for-source-node-and-move)
 	  (source-node-prep))))
     ;; For each clone from the source, add new clone id
