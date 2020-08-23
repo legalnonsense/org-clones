@@ -48,7 +48,7 @@ Install these dependencies.
 - [X] Remove =org-ql=
 - [ ] Remove =org-ml=
 - [X] Remove =ov=
-- [X] Fix putting all clone effects on startup so it is properly recursive [no need to be recursive]
+- [ ] Fix putting all clone effects on startup so it is properly recursive 
 - [ ] Fix =org-clones--goto-body-start= to skip closing note logs
 - [ ] Figure out how to handle having multiple buffers open
 - [X] Get rid of goto-headline-start... and similar functions (only need get- functions) [abandoned]

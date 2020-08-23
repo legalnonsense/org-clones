@@ -248,8 +248,8 @@ before the ellipsis."
 (defun org-clones--get-headline-string ()
   "Get the full text of a headline at point, including
 TODO state, headline text, and tags." 
-  (buffer-substring-no-properties (org-clones--get-headline-start)
-				  (org-clones--get-headline-end)))
+  (buffer-substring (org-clones--get-headline-start)
+		    (org-clones--get-headline-end)))
 
 ;; (defun org-clones--replace-headline (headline)
 ;;   "Replace the headline text at point with HEADLINE."
@@ -271,6 +271,15 @@ TODO state, headline text, and tags."
 of the current node."
   (org-clones--replace-body org-clones-empty-body-string))
 
+(defun org-clones--goto-body-end ()
+  "Goto the end of the body of the current node, 
+and return the point."
+  (unless (outline-next-heading)
+    (goto-char (point-max)))
+  (re-search-backward org-clones--not-whitespace-re
+		      nil t)
+  (goto-char (match-end 0)))
+
 (defun org-clones--get-body-end ()
   "Get the end point of the body of the current node."
   (save-excursion (org-clones--goto-body-end)))
@@ -280,6 +289,7 @@ of the current node."
 parlance?"
   (org-clones--parse-body))
 
+;; TODO: Account for CLOSING notes
 (defun org-clones--goto-body-start ()
   "Go to the start of the body of the current node,
 and return the point."
@@ -291,15 +301,6 @@ and return the point."
 (defun org-clones--get-body-start ()
   "Get the start point of the body of the current node."
   (save-excursion (org-clones--goto-body-start)))
-
-(defun org-clones--goto-body-end ()
-  "Goto the end of the body of the current node, 
-and return the point."
-  (unless (outline-next-heading)
-    (goto-char (point-max)))
-  (re-search-backward org-clones--not-whitespace-re
-		      nil t)
-  (goto-char (match-end 0)))
 
 (defun org-clones--at-body-p ()
   "Is the point inside the body of a node?"
@@ -318,6 +319,7 @@ BODY."
   (save-excursion 
     (insert (or body
 		org-clones-empty-body-string)
+	    ;; Ensure a blank line after the new heading.
 	    "\n")))
 
 (defun org-clones--parse-body ()
@@ -331,10 +333,9 @@ and return the tree beginning with the section element."
 			       'first-section nil nil nil nil))
 
 (defun org-clones--get-body-string ()
-  "Get the body of the current node as a string."
-  (org-no-properties 
-   (org-element-interpret-data 
-    (org-clones--get-section-elements))))
+  "Get the body of the current node as a string." 
+  (org-element-interpret-data 
+   (org-clones--get-section-elements)))
 
 (defun org-clones--get-section-elements ()
   "Reduce the section data to the component elements,
@@ -372,15 +373,6 @@ nil if there are none."
   "Prompt user for a node and move to it."
   (org-goto))
 
-(defun org-clones--fold-property-drawer (&optional unfold)
-  "Fold the property drawer at the current heading. If 
-UNFOLD is non-nil, then unfold the drawer."
-  (save-excursion
-    (org-back-to-heading)
-    (re-search-forward org-property-drawer-re)
-    (goto-char (match-beginning 0))
-    (org-flag-drawer (not unfold))))
-
 (defun org-clones--sync-clones ()
   "Update all clones of the current node to match
 the headline and body of the current node and
@@ -395,13 +387,11 @@ place text properties and overlays in the cloned nodes."
     ;; normalize whitespace 
     (org-clones--replace-body body)
     (org-clones--put-clone-effects)
-    (org-clones--fold-property-drawer)
     (org-clones--iterate-over-clones
      (org-clones--remove-clone-effects)
      (org-clones--replace-headline headline)
      (org-clones--replace-body body)
-     (org-clones--put-clone-effects)
-     (org-clones--fold-property-drawer)))
+     (org-clones--put-clone-effects)))
   (message "Clones updated."))
 
 ;;; Text properties and overlays 
@@ -542,9 +532,8 @@ See `cursor-sensor-mode' for more details."
 	      (setq ,var-name ,@storage-form)
 	      ,@enter)
 	     (`left
-	      ;; I think these save excursions needs to be
-	      ;; separate because the user functions could
-	      ;; move the point.
+	      ;; These save excursions needs to be separate because
+	      ;; the user functions could move the point.
 	      (save-excursion
 		(goto-char last-pos)
 		,@exit)
@@ -564,17 +553,6 @@ See `cursor-sensor-mode' for more details."
 		  (goto-char last-pos)
 		  ,@change)
 		(setq ,var-name nil)))))))))
-
-(defun org-clones--get-relevant-string ()
-  "Get the body string if at the node body;
-get the headline string if at the headline."
-  (cond ((org-clones--at-headline-p)
-	 (org-clones--get-headline-string))
-	((org-clones--at-body-p)
-	 (org-clones--get-body-string))
-	(t (error
-	    (concat "Point is not at a headline or body."
-		    "There is no string to get.")))))
 
 (org-clones--create-text-watcher clone-watcher
   :enter ((message "Entered cloned!")
@@ -646,15 +624,12 @@ to its previous state, and turn off the minor mode."
 		   (point) "ORG-CLONES" this-id)
 		  (unless (org-clones--get-clone-ids)
 		    (org-clones--remove-clone-effects))))
-    (org-set-property "ORG-CLONES" "nil")
-    (org-clones--remove-clone-effects)
     (message "This node is no longer synced with other clones.")))
 
 ;;;###autoload
 (defun org-clones-store-marker ()
   "Store a marker to create a clone."
   (interactive)
-  (org-back-to-heading)
   (setq org-clones--temp-marker (point-marker))
   (message "Stored %S for clone creation."
 	   (org-no-properties 
@@ -665,10 +640,7 @@ to its previous state, and turn off the minor mode."
   "Create a clone from the previously stored marker."
   (interactive)
   (if org-clones--temp-marker
-      ;; Make sure org-clones-mode is active in the buffer
-      (progn 
-	(unless org-clones-mode (org-clones-mode 1))
-	(org-clones-create-clone org-clones--temp-marker))
+      (org-clones-create-clone org-clones--temp-marker)
     (user-error "You have not stored the source node yet."))
   (setq org-clones--temp-marker nil))
 
@@ -685,7 +657,7 @@ SOURCE-POINT is a marker for the location of the source node"
     (setq clone-id (org-id-get-create))
     ;; At the source heading...
     (cl-flet ((source-node-prep
-	       ()
+	       nil
 	       (org-back-to-heading)
 	       (org-clones--remove-clone-effects)
 	       (setq source-headline (org-clones--get-headline-string))
@@ -699,11 +671,10 @@ SOURCE-POINT is a marker for the location of the source node"
 						      clone-id)
 	       (setq source-clone-list (org-clones--get-clone-ids))
 	       (org-clones--put-clone-effects)))
-      (save-excursion 
-	(if source-marker
-	    (with-current-buffer (marker-buffer source-marker)
-	      (goto-char source-marker)
-	      (source-node-prep))
+      (if source-marker
+	  (with-current-buffer (marker-buffer source-marker)
+	    (source-node-prep))
+	(save-excursion 
 	  (org-clones--prompt-for-source-node-and-move)
 	  (source-node-prep))))
     ;; For each clone from the source, add new clone id
@@ -752,7 +723,8 @@ each time the point is in the headline or body of a cloned node."
 	(cursor-sensor-mode -1)
 	(org-clones--initialize-temp-overlay)
 	(org-clones--initialize-overlays-in-buffer)
-	(cursor-sensor-mode 1))))
+	(cursor-sensor-mode 1))
+    (org-clones--remove-all-clone-effects-in-buffer)))
 
 ;;;; Footer
 
