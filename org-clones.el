@@ -78,6 +78,7 @@
 
 (require 'org)
 (require 'org-id)
+;;(require 'org-archive)
 
 ;;;; Faces
 (defface org-clones-current-clone
@@ -177,10 +178,10 @@ the buffer (but do not iterate over clones outside the buffer)."
 Move the cursor to that entry in that buffer, execute BODY,
 move back."
   (declare (indent defun))
-  `(--when-let (org-id-find ,id 'marker)
+  `(when-let ((marker (org-id-find ,id 'marker)))
      (save-excursion 
-       (with-current-buffer (marker-buffer it)
-	 (goto-char it)
+       (with-current-buffer (marker-buffer marker)
+	 (goto-char marker)
 	 ,@body))))
 
 ;;;; Headline functions
@@ -191,11 +192,8 @@ leading stars."
   (org-back-to-heading t)
   (re-search-forward org-clones--org-headline-re (point-at-eol))
   (when-let ((todo (org-get-todo-state)))
-    (re-search-forward todo (point-at-eol) t))
-  (if (re-search-forward org-clones--not-whitespace-re
-			 (point-at-eol)
-			 t)
-      (forward-char -1))
+    (re-search-forward todo (point-at-eol) t)
+    (forward-char 1))
   (point))
 
 (defun org-clones--get-headline-start ()
@@ -236,18 +234,20 @@ before the ellipsis."
 		   (org-clones--get-headline-end))))
 
 (defun org-clones--get-headline-string ()
-  "Get the full text of a headline at point, including
-TODO state, headline text, and tags." 
-  (buffer-substring-no-properties
-   (org-clones--get-headline-start)
-   (org-clones--get-headline-end)))
+  "Get the full text of a headline at point, excluding the
+leading stars, TODO state, and tags."
+  (save-excursion
+    (org-back-to-heading)
+    (plist-get (cadr (org-element-at-point)) :raw-value)))
 
 (defun org-clones--replace-headline (headline)
   "Replace the headline text at point with HEADLINE."
   (save-excursion 
     (org-clones--delete-headline)
     (org-clones--goto-headline-start)
-    (insert headline)))
+    (insert headline)
+    ;;(unless (looking-at " ") (insert " "))
+    (org--align-tags-here org-tags-column))) 
 
 ;; (defun org-clones--replace-headline (headline)
 ;;   "Replace the headline text at point with HEADLINE"
@@ -368,6 +368,11 @@ e.g. (:begin 1 :end 10 :contents-begin ...)."
 	      (beg (plist-get prop-list :begin))
 	      (end (plist-get prop-list :end)))
     (delete-region beg end)))
+
+(defun org-clones--delete-body ()
+  (delete-region (org-clones--get-body-start)
+		 (save-excursion 
+		   (outline-next-heading) (point))))
 
 ;;;; Clone interaction 
 
