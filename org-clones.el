@@ -33,20 +33,14 @@
 
 ;;;;; Manual
 
-;; Install these required packages:
-
-;; + org-id
-;; + org-ml
-;; + ov
-
-;; Then put this file in your load-path, and put this in your init
+;; Put this file in your load-path, and put this in your init
 ;; file:
 
 ;; (require 'org-clones)
 
 ;;;; Usage
 
-;; Add `org-clones-initialize' to your org-mode hook.
+;; M-x `org-clones-mode' (or add it to your org-mode hook).
 ;; With the cursor on an org heading, run
 ;; `org-clones-create-clone'. You have created a clone. 
 ;; Edit the clone, and your edits will sync.
@@ -128,8 +122,7 @@ Must be a string other than whitespace."
 
 ;;;; Variables
 
-(defvar org-clones--cursor-sensor-functions
-  nil
+(defvar org-clones--cursor-sensor-functions nil
   "List of cursor-sensor-functions to apply to the headline
 and body of cloned nodes.")
 
@@ -152,11 +145,6 @@ or body overlay.")
   "Regexp matching any non-whitespace charcter.")
 
 ;;;; Macros
-
-(defmacro org-clones--inhibit-read-only (&rest body)
-  "Substitute for (let ((inhibit-read-only t)) ...)."
-  `(let ((inhibit-read-only t))
-     ,@body))
 
 (defmacro org-clones--iterate-over-clones (&rest body)
   "Execute BODY at each clone of node at point."
@@ -236,12 +224,11 @@ before the ellipsis."
 
 (defun org-clones--delete-headline ()
   "Delete the headline of the heading at point."
-  (org-clones--inhibit-read-only
-   (unless (string=
-	    (plist-get (cadr (org-element-at-point)) :raw-value)
-	    "")
-     (delete-region (org-clones--get-headline-start)
-		    (org-clones--get-headline-end)))))
+  (unless (string=
+	   (plist-get (cadr (org-element-at-point)) :raw-value)
+	   "")
+    (delete-region (org-clones--get-headline-start)
+		   (org-clones--get-headline-end))))
 
 (defun org-clones--get-headline-string ()
   "Get the full text of a headline at point, including
@@ -357,11 +344,10 @@ e.g. (:begin 1 :end 10 :contents-begin ...)."
   (cadar (org-clones--parse-body)))
 
 (defun org-clones--delete-body ()
-  (org-clones--inhibit-read-only
-   (when-let* ((prop-list (org-clones--get-body-section-plist))
-	       (beg (plist-get prop-list :begin))
-	       (end (plist-get prop-list :end)))
-     (delete-region beg end))))
+  (when-let* ((prop-list (org-clones--get-body-section-plist))
+	      (beg (plist-get prop-list :begin))
+	      (end (plist-get prop-list :end)))
+    (delete-region beg end)))
 
 ;;;; Clone interaction 
 
