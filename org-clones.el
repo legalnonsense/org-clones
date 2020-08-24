@@ -84,7 +84,6 @@
 
 (require 'org)
 (require 'org-id)
-(require 'org-ml)
 
 ;;;; Faces
 (defface org-clones-current-clone
@@ -144,7 +143,7 @@ to restore if the edit is abandoned.")
 (defvar org-clones--temp-overlay nil
   "Temporary holder for the transient headline 
 or body overlay.")
-(make-local-variable 'org-clones--temp-overlay)
+(make-variable-buffer-local 'org-clones--temp-overlay)
 
 (defvar org-clones--headline-re "^*+ "
   "Org headline regexp.")
@@ -251,18 +250,17 @@ TODO state, headline text, and tags."
    (org-clones--get-headline-start)
    (org-clones--get-headline-end)))
 
-;; (defun org-clones--replace-headline (headline)
-;;   "Replace the headline text at point with HEADLINE."
-;;   (save-excursion 
-;;     (org-clones--delete-headline)
-;;     (org-clones--goto-headline-start)
-;;     (insert headline)))
-
-;; TODO re-write this to get rid of org-ml
 (defun org-clones--replace-headline (headline)
-  "Replace the headline text at point with HEADLINE"
-  (org-ml-update-this-headline*
-    (org-ml-set-property :title `(,(concat headline " ")) it)))
+  "Replace the headline text at point with HEADLINE."
+  (save-excursion 
+    (org-clones--delete-headline)
+    (org-clones--goto-headline-start)
+    (insert headline)))
+
+;; (defun org-clones--replace-headline (headline)
+;;   "Replace the headline text at point with HEADLINE"
+;;   (org-ml-update-this-headline*
+;;     (org-ml-set-property :title `(,(concat headline " ")) it)))
 
 ;;;; Body functions 
 
@@ -275,7 +273,9 @@ of the current node."
   "Goto the end of the body of the current node, 
 and return the point."
   (unless (outline-next-heading)
-    (goto-char (point-max)))
+    (goto-char (point-max))
+    (when (= (point) (org-clones--get-headline-end))
+      (insert "\n")))
   (re-search-backward org-clones--not-whitespace-re
 		      nil t)
   (goto-char (match-end 0)))
@@ -789,7 +789,6 @@ each time the point is in the headline or body of a cloned node."
   nil
   (if org-clones-mode
       (progn
-	(cursor-sensor-mode -1)
 	(org-clones--initialize-temp-overlay)
 	(org-clones--initialize-overlays-in-buffer)
 	(org-clones--reset-all-clone-effects-in-buffer)
