@@ -116,7 +116,9 @@ Must be a string other than whitespace."
   :type 'string)
 
 (defcustom org-clones-use-popup-prompt nil
-  "Whether to use a dialog box to prompt before syncing clones.")
+  "Whether to use a dialog box to prompt before syncing clones."
+  :group 'org-clones
+  :type 'boolean)
 
 (defcustom org-clones-prompt-before-syncing t
   "Whether to prompt the user before syncing changes to all clones."
@@ -553,7 +555,7 @@ See `cursor-sensor-mode' for more details."
        (if (boundp ',var-name)
 	   (setq ,var-name nil)
 	 (defvar ,var-name nil))
-       (cl-pushnew ',function-name org-clones-cursor-sensor-functions)
+       (cl-pushnew ',function-name org-clones--cursor-sensor-functions)
        (defun ,function-name (_window last-pos entered-or-left)
 	 (let ((cursor-sensor-inhibit t))
 	   (pcase entered-or-left
