@@ -145,7 +145,7 @@ to restore if the edit is abandoned.")
 or body overlay.")
 (make-variable-buffer-local 'org-clones--temp-overlay)
 
-(defvar org-clones--headline-re "^*+ "
+(defvar org-clones--org-headline-re "^*+ "
   "Org headline regexp.")
 
 (defvar org-clones--not-whitespace-re "[^[:space:]]"
@@ -196,7 +196,7 @@ move back."
   "Goto the first point of the headline, after the
 leading stars."
   (org-back-to-heading t)
-  (re-search-forward org-clones--headline-re (point-at-eol))
+  (re-search-forward org-clones--org-headline-re (point-at-eol))
   (when-let ((todo (org-get-todo-state)))
     (re-search-forward todo (point-at-eol) t))
   (if (re-search-forward org-clones--not-whitespace-re
