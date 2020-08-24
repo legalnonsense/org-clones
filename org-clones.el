@@ -736,7 +736,12 @@ SOURCE-POINT is a marker for the location of the source node"
   (let (source-headline source-body source-id source-clone-list	clone-id)
     ;; At the new heading...
     (org-insert-heading-respect-content)
-    (setq clone-id (org-id-get-create))
+    ;; I do not understand why `org-id-get-create' has to be called
+    ;; interactively, but if it is not, and the file is not already in
+    ;; `org-id-files', then `org-id-get-create' does not add it,
+    ;; and we won't be able to find any of the IDs we've created and
+    ;; `org-clones--with-point-at-id' will fail. 
+    (setq clone-id (call-interactively 'org-id-get-create))
     ;; At the source heading...
     (cl-flet ((source-node-prep
 	       nil
@@ -747,7 +752,7 @@ SOURCE-POINT is a marker for the location of the source node"
 	       (when (string= "" source-body)
 		 (org-clones--insert-blank-body)
 		 (setq source-body org-clones-empty-body-string))
-	       (setq source-id (org-id-get-create))
+	       (setq source-id (call-interactively 'org-id-get-create))
 	       (org-entry-add-to-multivalued-property (point)
 						      "ORG-CLONES"
 						      clone-id)
@@ -827,4 +832,5 @@ each time the point is in the headline or body of a cloned node."
 ;;;; Footer
 
 (provide 'org-clones)
+
 
