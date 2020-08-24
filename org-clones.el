@@ -115,6 +115,9 @@ Must be a string other than whitespace."
   :group 'org-clones
   :type 'string)
 
+(defcustom org-clones-use-popup-prompt nil
+  "Whether to use a dialog box to prompt before syncing clones.")
+
 (defcustom org-clones-prompt-before-syncing t
   "Whether to prompt the user before syncing changes to all clones."
   :group 'org-clones
@@ -462,7 +465,8 @@ node."
   (set-text-properties (point-min) (point-max) '(cursor-sensor-functions nil)))
 
 (defun org-clones--reset-all-clone-effects-in-buffer ()
-  "Remove all clone effets on all clones in buffer."
+  "Reset all clone effets on all clones in buffer."
+  (org-clones--remove-all-cursor-sensors-in-buffer)
   (org-clones--iterate-over-all-clones-in-buffer
    (org-clones--remove-clone-effects)
    (org-clones--put-clone-effects)))
@@ -597,7 +601,8 @@ without syncing the clones. If so, unlink the current
 clone."
   (if (not org-clones-prompt-before-syncing)
       (org-clones--sync-clones)
-    (let ((last-nonmenu-event t))
+    (let ((last-nonmenu-event
+	   (not org-clones-use-popup-prompt)))
       ;; Without this let, y-or-n-p pops a dialog box
       (if (y-or-n-p "Sync your changes to all clones?")
 	  (org-clones--sync-clones)
