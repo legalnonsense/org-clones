@@ -128,8 +128,8 @@ Must be a string other than whitespace."
 
 ;;;; Variables
 
-(defvar org-clones-cursor-sensor-functions
-  '(org-clones--text-watcher-func-clone-watcher)
+(defvar org-clones--cursor-sensor-functions
+  nil
   "List of cursor-sensor-functions to apply to the headline
 and body of cloned nodes.")
 
@@ -438,17 +438,17 @@ current node."
 		    'org-clones-headline-overlay t)))
 
 (defun org-clones--put-cursor-sensor-props (&optional remove)
-  "Remove `org-clones-cursor-sensor-functions' from the the current node."
+  "Remove `org-clones--cursor-sensor-functions' from the the current node."
   (cl-loop for start in `(,(org-clones--get-headline-start)
 			  ,(org-clones--get-body-start))
 	   for end in `(,(org-clones--get-headline-end)
 			,(org-clones--get-body-end))
-	   do (cl-loop for func in org-clones-cursor-sensor-functions
+	   do (cl-loop for func in org-clones--cursor-sensor-functions
 		       do (org-clones--change-cursor-sensor-prop
 			   start end func remove))))
 
 (defun org-clones--remove-cursor-sensor-props ()
-  "Remove `org-clones-cursor-sensor-functions' from the headline and 
+  "Remove `org-clones--cursor-sensor-functions' from the headline and 
 body of the current node."
   (org-clones--put-cursor-sensor-props 'remove))
 
@@ -470,6 +470,10 @@ node."
   (org-clones--put-clone-effects))
 
 ;;;; Emergency functions
+
+(defun org-clones--remove-all-cursor-sensors-in-buffer ()
+  "Remove all cursor sensor text properties in the buffer."
+  (set-text-properties (point-min) (point-max) '(cursor-sensor-functions nil)))
 
 (defun org-clones--reset-all-clone-effects-in-buffer ()
   "Remove all clone effets on all clones in buffer."
@@ -544,6 +548,7 @@ See `cursor-sensor-mode' for more details."
        (if (boundp ',var-name)
 	   (setq ,var-name nil)
 	 (defvar ,var-name nil))
+       (cl-pushnew ',function-name org-clones-cursor-sensor-functions)
        (defun ,function-name (_window last-pos entered-or-left)
 	 (let ((cursor-sensor-inhibit t))
 	   (pcase entered-or-left
@@ -551,8 +556,8 @@ See `cursor-sensor-mode' for more details."
 	      (setq ,var-name ,@storage-form)
 	      ,@enter)
 	     (`left
-	      ;; These save excursions needs to be separate because
-	      ;; the user functions could move the point.
+	      ;; Each save excursion must to be separate because
+	      ;; any of the user functions could move the point.
 	      (save-excursion
 		(goto-char last-pos)
 		,@exit)
@@ -676,8 +681,6 @@ to its previous state, and turn off the minor mode."
 
 ;;;; Commands
 
-;; FIX ME: This does not remove the clones from the current node
-;; ... OR DOES IT!?
 (defun org-clones-unsync-this-clone ()
   (interactive)
   (let ((this-id (org-id-get))
