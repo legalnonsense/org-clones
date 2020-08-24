@@ -175,9 +175,9 @@ the buffer (but do not iterate over clones outside the buffer)."
      (goto-char (point-min))
      (while (re-search-forward org-property-drawer-re nil t)
        (goto-char (match-beginning 0))
-       (when (re-search-forward ":ORG-CLONES:" nil (match-end 0))
-	 (when (org-entry-get (point) "ORG-CLONES")
-	   ,@body)))))
+       ;;(when (re-search-forward ":ORG-CLONES:" nil (match-end 0))
+       (when (org-entry-get (point) "ORG-CLONES")
+	 ,@body))))
 
 (defmacro org-clones--with-point-at-id (id &rest body)
   "Switch to the buffer containing the entry with id ID.
@@ -350,8 +350,6 @@ e.g., '((paragraph (...))
 ;; And remove any closing note."
 ;;   (let ((elements (cddar (org-clones--parse-body))))
 ;;     (when (and (eq (caar elements) 'plain-list)
-
-
 
 (defun org-clones--get-body-section-plist ()
   "Get the plist associated with the section element, 
@@ -764,6 +762,20 @@ SOURCE-POINT is a marker for the location of the source node"
     (org-clones--replace-body source-body)
     (org-clones--put-clone-effects)))
 
+(defun org-clones--cursor-sensor-mode-check ()
+  "Turn `cursor-sensor-mode' on or off if there is any
+cursor-sensor-functions text property in the buffer." 
+  (if (save-excursion
+	(save-restriction
+	  (widen)		
+	  (next-single-property-change
+	   (point-min)
+	   'cursor-sensor-functions)))
+      ;; If so, enable cursor-sensor-mode...
+      (cursor-sensor-mode 1)
+    ;; ...otherwise, disable it. 
+    (cursor-sensor-mode -1)))
+
 ;;;; Initialization 
 
 (defun org-clones--initialize-temp-overlay ()
@@ -793,7 +805,8 @@ each time the point is in the headline or body of a cloned node."
 	(org-clones--initialize-overlays-in-buffer)
 	(org-clones--reset-all-clone-effects-in-buffer)
 	(cursor-sensor-mode 1))
-    (org-clones--remove-all-clone-effects-in-buffer)))
+    (org-clones--remove-all-clone-effects-in-buffer)
+    (org-clones--cursor-sensor-mode-check)))
 
 ;;;; Footer
 
