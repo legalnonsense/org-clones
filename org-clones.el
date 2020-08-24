@@ -279,14 +279,28 @@ and return the point."
 parlance?"
   (org-clones--parse-body))
 
-;; TODO: Account for CLOSING notes
 (defun org-clones--goto-body-start ()
   "Go to the start of the body of the current node,
 and return the point."
   (org-end-of-meta-data t)
-  (when (re-search-backward org-clones--not-whitespace-re nil t)
-    (forward-char 2))
-  (point))
+  (let ((section (org-clones--get-section-elements)))
+    ;; RIDICULOUS!!
+    (if (and (eq (caar section) 'plain-list)
+	     (eq (car (caddar section)) 'item)
+	     (eq (caaddr (caddar section)) 'paragraph)
+	     (string= (nth 2 (caddr (caddar section))) "CLOSING NOTE "))
+	(goto-char (plist-get (nth 1 (car section)) :end))
+      (when (re-search-backward org-clones--not-whitespace-re nil t)
+	(forward-char 2))
+      (point))))  
+
+;; (defun org-clones--goto-body-start ()
+;;   "Go to the start of the body of the current node,
+;; and return the point."
+;;   (org-end-of-meta-data t)
+;;   (when (re-search-backward org-clones--not-whitespace-re nil t)
+;;     (forward-char 2))
+;;   (point))
 
 (defun org-clones--get-body-start ()
   "Get the start point of the body of the current node."
