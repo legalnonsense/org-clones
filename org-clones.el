@@ -24,7 +24,7 @@
 ;;        and property drawers until the next node.
 
 ;; This package allows the user to clone a node, which duplicates
-;; the node's headline and body. An overlay is then placed over each clone.
+;; the node's headline and body.  An overlay is then placed over each clone.
 ;; If the user attempts to edit the clone, they are prompted to either enter
 ;; an edit-mode, which will sync all changes to other clones upon completion,
 ;; or to unlink the clone. 
@@ -42,8 +42,8 @@
 
 ;; M-x `org-clones-mode' (or add it to your org-mode hook).
 ;; With the cursor on an org heading, run
-;; `org-clones-create-clone'. You have created a clone. 
-;; Edit the clone, and your edits will sync.
+;; `org-clones-create-clone'.  You have created a clone. 
+;; Edit the clone, and your edits will sync.  
 ;; You can also create clones across files with 
 ;; `org-clones-store-marker' at an org heading and
 ;; running `org-clones-create-clone-from-marker'
@@ -99,19 +99,19 @@ node (i.e., headline or body)."
 		  org-clones-headline-overlay t
 		  evaporate t)
   "Overlays placed on each clone, regardless of whether the 
-cursor is on the cloned node."
+cursor is on the cloned node.  Must be a plist of overlay properties."
   :group 'org-clones
   :type 'plist)
 
 (defcustom org-clones-empty-body-string "[empty clone body]\n"
-  "Place holder inserted into clones with empty bodies.
-Can be any string other than whitespace. Must end with a newline.
+  "Place holder inserted into clones with empty bodies.  
+Can be any string other than whitespace.  Must end with a newline.  
 Must be a string other than whitespace."
   :group 'org-clones
   :type 'string)
 
 (defcustom org-clones-empty-headling-string "[empty clone headline]"
-  "Place holder inserted into clones with empty headlines.
+  "Place holder inserted into clones with empty headlines.  
 Must be a string other than whitespace."
   :group 'org-clones
   :type 'string)
@@ -286,8 +286,7 @@ parlance?"
 and return the point."
   (org-end-of-meta-data t)
   (let ((section (org-clones--get-section-elements)))
-    ;; Ridiculous way to see if we are at closing note!
-    ;; Could use regular expressions.
+    ;; This is a ridiculous way to see if we are at closing note.
     (if (and (eq (caar section) 'plain-list)
 	     (eq (car (caddar section)) 'item)
 	     (eq (caaddr (caddar section)) 'paragraph)
@@ -349,14 +348,6 @@ and return the tree beginning with the section element."
 e.g., '((paragraph (...))
         (src-block (...)) ...)."
   (cddar (org-clones--parse-body)))
-
-;; (defun org-clones--get-section-elements ()
-;;   "Reduce the section data to the component elements,
-;; e.g., '((paragraph (...))
-;;         (src-block (...)) ...). 
-;; And remove any closing note."
-;;   (let ((elements (cddar (org-clones--parse-body))))
-;;     (when (and (eq (caar elements) 'plain-list)
 
 (defun org-clones--get-body-section-plist ()
   "Get the plist associated with the section element, 
@@ -621,6 +612,7 @@ See `cursor-sensor-mode' for more details."
   "Ask the user if they want to edit the node
 without syncing the clones. If so, unlink the current 
 clone."
+  (interactive)
   (if (not org-clones-prompt-before-syncing)
       (org-clones--sync-clones)
     (let ((last-nonmenu-event
@@ -639,6 +631,7 @@ clone."
 (defun org-clones--discard-edit ()
   "Discard the current edit and restore the node
 to its previous state, and turn off the minor mode."
+  (interactive)
   (org-clones--replace-headline
    (car org-clones--restore-state))
   (org-clones--replace-body
@@ -647,12 +640,12 @@ to its previous state, and turn off the minor mode."
   (message "Org-clones: Discarded edit.")
   (setq org-clones--restore-state nil))
 
-;;;; Navigatig to toher cloes
+;;;; Navigating to other clones
 
 ;; (defvar org-clones--clone-cycle-map
 ;;   (let ((map (make-sparse-keymap)))
+
 ;;     (define-key map (kbd "n") #'org-clones-cycle-through-clones-next)
-;;     (define-key map (kbd "p") #'org-clones-cycle-through-clones-previous)
 ;;     map)
 ;;   "Keymap for clone cycling.")
 
