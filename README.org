@@ -6,7 +6,7 @@ A lot has changed. Do not look at this read me.
 
 * Ideas for orgmode clones
 
-I want to be able to clone an orgmode heading so that it can appear in different places in an outline. When I edit one of these headings, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.htmlwhich, I wish I could use, but it’s not in Emacs so it is dead to me.
+I want to be able to clone an orgmode heading so that it can appear in different places in an outline. When I edit one of these headings, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
 
 * Why clones?
 Let’s say you have an outline with two headings:
@@ -37,20 +37,18 @@ I use the following words to describe the following things:
 
 * Installation 
 ** Dependencies
-Install these dependencies. 
-- [[https://github.com/ndwarshuis/org-ml][org-ml]] (hopefully temporary)
-- [[https://github.com/alphapapa/org-ql][org-ql]] (maybe temporary)
+None except org and org-id
 * Usage
 * Task list
-- [ ] Write functions to jump to next clone [in progress; harder than I thought!]
+- [ ] Write functions to jump to next clone [just need to figure out the header line problem, or use a different way of handling it.]
 - [X] Clean up overlay and text properties
 - [X] When the point enters a sensor field, add a space to be able to add to the end of the field [solution was a disaster]
 - [X] Remove =org-ql=
 - [X] Remove =org-ml=
 - [X] Remove =ov=
 - [X] Fix putting all clone effects on startup so it is properly recursive [no recursion; done though enabling mode]
-- [ ] What the fuck is up with the org-id problem!?
-- [ ] Fix =org-clones--goto-body-start= to skip closing note logs [also harder than I thought]
+- [ ] What the fuck is up with the org-id problem!? [I don’t know yet.]
+- [X] Fix =org-clones--goto-body-start= to skip closing note logs [also harder than I thought]
 - [X] Figure out how to handle having multiple buffers open
 - [X] Get rid of goto-headline-start... and similar functions (only need get- functions) [abandoned]
 - [X] Fix org-clones--remove-text-properties to remove only the text props at issue
