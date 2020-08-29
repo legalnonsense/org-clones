@@ -78,6 +78,7 @@
 
 (require 'org)
 (require 'org-id)
+(require 'color)
 
 ;;;; Customization
 
@@ -102,20 +103,21 @@
   `(before-string ,org-clones-clone-prefix-string
 		  evaporate t)
   "Overlays placed on each clone, regardless of whether the 
-cursor is on the cloned node.  Must be a plist of overlay properties."
+cursor is on the cloned node.  Must be a plist of overlay properties.
+By default, the only thing this displays is `org-clones-clone-prefix-string'"
   :group 'org-clones
   :type 'plist)
 
 (defcustom org-clones-node-text-properties nil
   "Text properties to place on the headline and body of each node.
-Note: If you want to use the cursor-sensor-functions property, use 
-`org-clones--put-cursor-sensor-props' and 
-`org-clones--cursor-sensor-functions'. This variable is for text
-other text properties."
+Note: If you want to chage the cursor-sensor-functions property, 
+(perhaps for use with a different package) use 
+`org-clones--put-cursor-sensor-props'.  This variable is for other text properties (e.g., a face, keymap, etc.)."
   :group 'org-clones
   :type 'plist)
 
-(defcustom org-clones-node-overlay-properties nil
+(defcustom org-clones-node-overlay-properties
+  '(face org-clones-clone)
   "List of overlay properties to place at the headline and body of 
 each node."
   :group 'org-clones
@@ -144,6 +146,15 @@ Must be a string other than whitespace."
   :group 'org-clones
   :type 'boolean)
 
+(defcustom org-clones-use-auto-color-for-clone-face 15
+  "Do you want to automatically brighten or darken the 
+background of the face at point? If so, supply a percent
+to lighten or darken based on your org-mode background color.
+(Use negative numbers to darken, positive to lighten.). Nil will
+turn this feature off, 0 will result in no change."
+  :group 'org-clones
+  :type 'int)
+
 ;;;; Faces
 
 (defgroup org-clones-faces ()
@@ -153,18 +164,27 @@ Must be a string other than whitespace."
 (defface org-clones-current-clone
   '((t (:background "orchid" :foreground "black")))
   "Face applied when the point is inside a cloned
-node (i.e., headline or body)."
+  node (i.e., headline or body)."
+  :group 'org-clones-faces)
+
+(defface org-clones-clone
+  `((t (:background ,(if org-clones-use-auto-color-for-clone-face
+			 (color-lighten-name 
+			  (face-background 'default)
+			  org-clones-use-auto-color-for-clone-face)
+		       (face-background 'default)))))
+  "Face applied to the headline and body of each cloned node."
   :group 'org-clones-faces)
 
 ;;;; Variables
 
 (defvar org-clones--cursor-sensor-functions nil
   "List of cursor-sensor-functions to apply to the headline
-and body of cloned nodes.")
+  and body of cloned nodes.")
 
 (defvar org-clones--restore-state nil
   "When editing a clone, save the current headline and body
-to restore if the edit is abandoned.")
+  to restore if the edit is abandoned.")
 (make-variable-buffer-local 'org-clones--restore-state)
 
  (defvar org-clones--temp-marker nil
@@ -172,7 +192,7 @@ to restore if the edit is abandoned.")
 
 (defvar org-clones--temp-overlay nil
   "Temporary holder for the transient headline 
-or body overlay.")
+  or body overlay.")
 (make-variable-buffer-local 'org-clones--temp-overlay)
 
 (defvar org-clones--org-headline-re org-outline-regexp
@@ -180,6 +200,26 @@ or body overlay.")
 
 (defvar org-clones--not-whitespace-re "[^[:space:]]"
   "Regexp matching any non-whitespace charcter.")
+
+(defvar org-clones--clone-cycle-list nil
+  "Temporary storage when cycling through clones.")
+
+(defvar org-clones--clone-cycle-buffer-list nil
+  "Temporary storage for the buffer name and `header-line-format'
+  list when cycling through clones.")
+
+(defvar org-clones--clone-cycle-header-msg
+  "Press 'n' to jump to next clone; any key to quit."
+  "Message displayed in the header-line when cycling
+through clones.")
+
+;;;; Keymaps
+
+(defvar org-clones--clone-cycle-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "n") #'org-clones-cycle-through-clones)
+    map)
+  "Keymap for clone cycling.")
 
 ;;;; Macros
 
@@ -194,8 +234,6 @@ or body overlay.")
 (defmacro org-clones--iterate-over-all-clones-in-buffer (&rest body)
   "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, in 
 the buffer (but do not iterate over clones outside the buffer)."
-  ;; This method appears to be faster than `org-ql' and
-  ;; is *much* faster than `org-map-entries'.
   `(save-excursion
      (goto-char (point-min))
      (while (re-search-forward org-property-drawer-re nil t)
@@ -290,6 +328,15 @@ and return the point."
   (forward-char -1)
   (point))
 
+(defun org-clones--goto-body-end ()
+  "Goto the end of the body of the current node, 
+and return the point."
+  (goto-char (org-entry-end-position))
+  (re-search-backward org-clones--not-whitespace-re nil t)
+  (goto-char (match-end 0))
+  (forward-char 1)
+  (point))
+
 (defun org-clones--get-body-end ()
   "Get the end point of the body of the current node."
   (save-excursion (org-clones--goto-body-end)))
@@ -325,9 +372,9 @@ and return the point."
     (and (<= (point) end)
 	 (>= (point) start))))
 
-(defun org-clones--ensure-blank-line-before-next-heading ()
-  "Ensure there is only one blank line between the end of the
-current body and the next node."
+(defun org-clones--normalize-node-format ()
+  "Ensure there is one (and only one) blank line between the end 
+of the current body and the next node."
   (save-excursion 
     (goto-char (org-entry-end-position))
     (re-search-backward org-clones--not-whitespace-re nil t)
@@ -335,6 +382,13 @@ current body and the next node."
     (delete-region (point) (or (outline-next-heading)
 			       (point-max)))
     (insert "\n\n")))
+
+(defun org-clones--normalize-node-format ()
+  "Ensure there is a single space after the body of the node."
+  (save-excursion 
+    (org-clones--goto-body-end)
+    (unless (looking-at " ")
+      (insert " "))))
 
 (defun org-clones--replace-body (body)
   "Replace the body of the current node with
@@ -347,7 +401,7 @@ BODY. If BODY is nil, then use `org-clones-empty-body-string'."
     (insert (or body
 		org-clones-empty-body-string)
 	    "\n"))
-  (org-clones--ensure-blank-line-before-next-heading))
+  (org-clones--normalize-node-format))
 
 (defun org-clones--parse-body ()
   "Parse all elements from the start of the body to the next node.
@@ -392,6 +446,10 @@ e.g. (:begin 1 :end 10 :contents-begin ...)."
 		   (outline-next-heading) (point))))
 
 ;;;; Clone interaction 
+
+(defun org-clones--at-clone-p (&optional pos)
+  "Is the current point (or POS) in a cloned node?"
+  (org-entry-get (or pos (point)) "ORG-CLONES"))
 
 (defun org-clones--get-clone-ids ()
   "Get the org-ids of this node's clones. Return
@@ -452,8 +510,7 @@ place text properties and overlays in the cloned nodes."
 	   finally return overlay))
 
 (defun org-clones--put-node-overlay (&optional remove)
-  "Put `org-clones-node-overlay-properties' in the headline and body of the node at
- point. If REMOVE is non-nil, remove the overlays."
+  "Put `org-clones-node-overlay-properties' in the headline and body of the node at point. If REMOVE is non-nil, remove the overlays."
   (when org-clones-node-overlay-properties
     (if remove
 	(progn 
@@ -537,11 +594,12 @@ node."
   ;; The use of this function is redundant, but helps
   ;; ensure that cloned nodes keep a blank line
   ;; before the next heading. 
-  (org-clones--ensure-blank-line-before-next-heading)
+  (org-clones--normalize-node-format)
   (org-clones--put-cursor-sensor-props)
   (org-clones--put-headline-overlay)
   (org-clones--put-node-overlay)
-  (org-clones--put-node-text-properties))
+  (org-clones--put-node-text-properties)
+  (org-clones--fold-property-drawer))
 
 (defun org-clones--remove-clone-effects ()
   "Remove overlay and text properties at the current
@@ -687,7 +745,7 @@ See `cursor-sensor-mode' for more details."
 		   (setq end (org-clones--get-headline-end)))
 		  ((org-clones--at-body-p)
 		   (setq beg (org-clones--get-body-start))
-		   (setq end (org-entry-end-position))))
+		   (setq end (org-clones--get-body-end))))
 	    (move-overlay org-clones--temp-overlay beg end)
 	    (org-clones--begin-edit)))
   :exit ((delete-overlay org-clones--temp-overlay))
@@ -742,15 +800,6 @@ to its previous state, and turn off the minor mode."
 
 ;;;; Navigating to other clones
 
-(defvar org-clones--clone-cycle-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "n") #'org-clones-cycle-through-clones)
-    map)
-  "Keymap for clone cycling.")
-
-(defvar org-clones--clone-cycle-list nil
-  "Temporary storage when cycling through clones.")
-
 (defun org-clones-cycle-through-clones ()
   (interactive)
   (unless org-clones--clone-cycle-list
@@ -758,12 +807,24 @@ to its previous state, and turn off the minor mode."
 	  (append (org-clones--get-clone-ids)
 		  (list (org-id-get)))))
   (when org-clones--clone-cycle-list
+    (set-transient-map
+     org-clones--clone-cycle-map t
+     ;; Cleanup function for the transient keymap
+     (lambda ()
+       (setq org-clones--clone-cycle-list nil)
+       (cl-loop for (buffer . header) in
+		org-clones--clone-cycle-buffer-list
+		do (with-current-buffer buffer
+		     (setq header-line-format header)))
+       (setq org-clones--clone-cycle-buffer-list nil)))
     (let ((last-pop (pop org-clones--clone-cycle-list)))
-      (set-transient-map org-clones--clone-cycle-map t
-			 (lambda ()
-			   (setq org-clones--clone-cycle-list nil)
-			   (setq header-line-format old-header-line)))
       (org-id-goto last-pop)
+      (cl-pushnew (cons (buffer-name)
+			header-line-format)
+		  org-clones--clone-cycle-buffer-list
+		  :test 'equal)
+      (setq header-line-format
+	    org-clones--clone-cycle-header-msg)
       (setq org-clones--clone-cycle-list
 	    (append org-clones--clone-cycle-list
 		    (list last-pop))))))
@@ -921,5 +982,9 @@ each time the point is in the headline or body of a cloned node."
 ;;;; Footer
 
 (provide 'org-clones)
+
+;;; org-clones.el ends here
+
+
 
 

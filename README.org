@@ -40,14 +40,14 @@ I use the following words to describe the following things:
 None except org and org-id
 * Usage
 * Task list
-- [ ] Write functions to jump to next clone [just need to figure out the header line problem, or use a different way of handling it.]
+- [ ] What the fuck is up with the org-id problem!? [I don’t know yet.]
+- [X] Write functions to jump to next clone [just need to figure out the header line problem, or use a different way of handling it.]
 - [X] Clean up overlay and text properties
 - [X] When the point enters a sensor field, add a space to be able to add to the end of the field [solution was a disaster]
 - [X] Remove =org-ql=
 - [X] Remove =org-ml=
 - [X] Remove =ov=
 - [X] Fix putting all clone effects on startup so it is properly recursive [no recursion; done though enabling mode]
-- [ ] What the fuck is up with the org-id problem!? [I don’t know yet.]
 - [X] Fix =org-clones--goto-body-start= to skip closing note logs [also harder than I thought]
 - [X] Figure out how to handle having multiple buffers open
 - [X] Get rid of goto-headline-start... and similar functions (only need get- functions) [abandoned]
@@ -62,7 +62,9 @@ None except org and org-id
 Here are some other transclusion efforts or discussions of such efforts:
 
 https://github.com/alphapapa/transclusion-in-emacs
+
 https://github.com/justintaft/emacs-transclusion/blob/master/emacs-transclusion.el
+
 https://github.com/gregdetre/emacs-freex
 
 All very interesting, but I want one thing: headings that can appear anywhere that will be synced when edited. That’s it. 
