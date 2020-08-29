@@ -78,7 +78,6 @@
 
 (require 'org)
 (require 'org-id)
-(require 'color)
 
 ;;;; Customization
 
@@ -104,7 +103,7 @@
 		  evaporate t)
   "Overlays placed on each clone, regardless of whether the 
 cursor is on the cloned node.  Must be a plist of overlay properties.
-By default, the only thing this displays is `org-clones-clone-prefix-string'"
+By default, the only thing this displays is `org-clones-clone-prefix-string'."
   :group 'org-clones
   :type 'plist)
 
@@ -112,7 +111,8 @@ By default, the only thing this displays is `org-clones-clone-prefix-string'"
   "Text properties to place on the headline and body of each node.
 Note: If you want to chage the cursor-sensor-functions property, 
 (perhaps for use with a different package) use 
-`org-clones--put-cursor-sensor-props'.  This variable is for other text properties (e.g., a face, keymap, etc.)."
+`org-clones--put-cursor-sensor-props'.  This variable is for other 
+text properties (e.g., a face, keymap, etc.)."
   :group 'org-clones
   :type 'plist)
 
@@ -146,15 +146,6 @@ Must be a string other than whitespace."
   :group 'org-clones
   :type 'boolean)
 
-(defcustom org-clones-use-auto-color-for-clone-face 15
-  "Do you want to automatically brighten or darken the 
-background of the face at point? If so, supply a percent
-to lighten or darken based on your org-mode background color.
-(Use negative numbers to darken, positive to lighten.). Nil will
-turn this feature off, 0 will result in no change."
-  :group 'org-clones
-  :type 'int)
-
 ;;;; Faces
 
 (defgroup org-clones-faces ()
@@ -168,11 +159,7 @@ turn this feature off, 0 will result in no change."
   :group 'org-clones-faces)
 
 (defface org-clones-clone
-  `((t (:background ,(if org-clones-use-auto-color-for-clone-face
-			 (color-lighten-name 
-			  (face-background 'default)
-			  org-clones-use-auto-color-for-clone-face)
-		       (face-background 'default)))))
+  '((t (:background "black")))
   "Face applied to the headline and body of each cloned node."
   :group 'org-clones-faces)
 
@@ -232,8 +219,8 @@ through clones.")
 		     ,@body)))))
 
 (defmacro org-clones--iterate-over-all-clones-in-buffer (&rest body)
-  "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, in 
-the buffer (but do not iterate over clones outside the buffer)."
+  "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, 
+in the buffer (but do not iterate over clones outside the buffer)."
   `(save-excursion
      (goto-char (point-min))
      (while (re-search-forward org-property-drawer-re nil t)
@@ -334,7 +321,6 @@ and return the point."
   (goto-char (org-entry-end-position))
   (re-search-backward org-clones--not-whitespace-re nil t)
   (goto-char (match-end 0))
-  (forward-char 1)
   (point))
 
 (defun org-clones--get-body-end ()
@@ -372,23 +358,27 @@ and return the point."
     (and (<= (point) end)
 	 (>= (point) start))))
 
-(defun org-clones--normalize-node-format ()
-  "Ensure there is one (and only one) blank line between the end 
-of the current body and the next node."
-  (save-excursion 
-    (goto-char (org-entry-end-position))
-    (re-search-backward org-clones--not-whitespace-re nil t)
-    (goto-char (match-end 0))
-    (delete-region (point) (or (outline-next-heading)
-			       (point-max)))
-    (insert "\n\n")))
+;; (defun org-clones--normalize-node-format ()
+;;   "Ensure there is one (and only one) blank line between the end 
+;; of the current body and the next node."
+;;   (save-excursion 
+;;     (goto-char (org-entry-end-position))
+;;     (re-search-backward org-clones--not-whitespace-re nil t)
+;;     (goto-char (match-end 0))
+;;     (delete-region (point) (or (outline-next-heading)
+;; 			       (point-max)))
+;;     (insert "\n\n")))
+
+;; (defun org-clones--normalize-node-format ()
+;;   "Ensure there is a single space after the body of the node."
+;;   (save-excursion 
+;;     (org-clones--goto-body-end)
+;;     (unless (looking-at " ")
+;;       (insert " "))))
 
 (defun org-clones--normalize-node-format ()
   "Ensure there is a single space after the body of the node."
-  (save-excursion 
-    (org-clones--goto-body-end)
-    (unless (looking-at " ")
-      (insert " "))))
+  nil)
 
 (defun org-clones--replace-body (body)
   "Replace the body of the current node with
