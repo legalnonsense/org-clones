@@ -813,10 +813,7 @@ to its previous state, and turn off the minor mode."
 	(overlay-put org-clones--transient-overlay 'keymap nil)
 	(let ((inhibit-read-only t)
 	      (bounds (org-clones--get-range-of-field-at-point)))
-	  (put-text-property
-	   (car bounds)
-	   (cdr bounds)
-	   'read-only nil)))
+	  (put-text-property (car bounds) (cdr bounds) 'read-only nil)))
     (setq header-line-format org-clones--previous-header-line)
     (when (equal header-line-format
 		 org-clones--previous-header-line)
@@ -901,12 +898,11 @@ node's id from any nodes which contain it."
 to run `org-id-update-id-locations' for it to work property.
 This forces the user to save the buffer, and makes sure
 `org-id' can find the file and id."
-  ;; TODO: I don't think this fixes the problem.  It seems
-  ;; like a bug in `org-id'. 
   (if (buffer-file-name)
       ;; (unless (member (buffer-file-name)
       ;; 		  (hash-table-values org-id-locations))
-      ;; THIS CANNOT BE THE WAY TO SOLVE THE NEW FILE PROBLEM.
+      ;; TODO: I don't think this fixes the problem.  It seems
+      ;; like a bug in `org-id'. 
       (org-id-update-id-locations (list (buffer-file-name)) 'silent)
     (error "You must save this file before creating a clone")))
 

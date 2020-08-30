@@ -13,7 +13,11 @@ Anyone who has made an outline has run into the problem that an entry belongs in
 #+end_src
 Oh no. The Dogs header belongs in two places. Now suppose that the Dogs header contains everything you know about dogs. 
 
-You could handle this with links, so that you have a master Dog header and subsequent headers simply link back to it. I do not like that solution. I want to be able to clone an orgmode heading so that it can appear in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
+You could handle this with links, so that you have a master Dog header and subsequent headers simply link back to it. I do not like that solution. I want to clone the header so that it appears in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones automatically. 
+
+Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]], meaning that text from one file appears in another place, with edits synced back to the original source. It is a prominent featuree of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
+
+[insert animated gif]
 
 * Terminology
 I use the following teminology in the package:
@@ -62,10 +66,7 @@ Insert screenshot here.
 - [ ] write conflict check before syncing clones/when starting the mode
 - [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
 - [ ] make an animated gif for example section
-- [ ] write explanation of why one would want this feature
 * Other transclusion efforts
-Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]], meaning that text from one file appears in another place, with edits synced back to the original source. 
-
 Here are other Emacs transclusion efforts (or discussions of such efforts):
 
 https://github.com/alphapapa/transclusion-in-emacs
