@@ -79,6 +79,31 @@
 (require 'org)
 (require 'org-id)
 
+;;;; Keymaps
+
+(defvar org-clones--clone-cycle-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd org-clones-jump-to-next-clone-shortcut)
+      #'org-clones-cycle-through-clones)
+    map)
+  "Keymap for clone cycling.")
+
+(defvar org-clones--transient-clone-overlay-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd org-clones-start-edit-shortcut)
+      #'org-clones--begin-edit)
+    map)
+  "Keymap for transient overlays.")
+
+(defvar org-clones--edit-mode-map 
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd org-clones-commit-edit-shortcut)
+      #'org-clones--prompt-before-syncing)
+    (define-key map (kbd org-clones-abort-edit-shortcut)
+      #'org-clones--discard-edit)
+    map)
+  "Keymap for edit mode.")
+
 ;;;; Customization
 
 (defgroup org-clones ()
@@ -86,14 +111,40 @@
   :group 'org
   :prefix "org-clones-")
 
+(defcustom org-clones-commit-edit-shortcut "C-c C-c"
+  "Shortcut to commit edits when in `org-clones-edit-mode'
+Accepts any string acceptable to `kbd'."
+  :group 'org-clones
+  :type 'string)
+
+(defcustom org-clones-abort-edit-shortcut "C-c C-k"
+  "Shortcut to abort edits when in `org-clones-edit-mode'
+Accepts any string acceptable to `kbd'."
+  :group 'org-clones
+  :type 'string)
+
+(defcustom org-clones-start-edit-shortcut "C-c C-c"
+  "Shortcut to initiate `org-clones-edit-mode'
+Accepts any string acceptable to `kbd'."
+  :group 'org-clones
+  :type 'string)
+
+(defcustom org-clones-jump-to-next-clone-shortcut "n"
+  "Shortcut to jump to next clone via `org-clones-cycle-through-clones'
+Accepts any string acceptable to `kbd'."
+  :group 'org-clones
+  :type 'string)
+
 (defcustom org-clones-clone-prefix-string "◈ "
   "String prepended to the headline of a cloned node."
   :group 'org-clones
   :type 'string)
 
 (defcustom org-clones-transient-overlay-properties
-  '(face org-clones-current-clone priority 1000
-	 evaporate t)
+  `(face org-clones-current-clone
+	 priority 1000
+	 evaporate t
+	 keymap ,org-clones--transient-clone-overlay-map)
   "Properties to be added to the transient overlay."
   :group 'org-clones
   :type 'plist)
@@ -111,15 +162,18 @@ By default, the only thing this displays is `org-clones-clone-prefix-string'."
   "Text properties to place on the headline and body of each node.
 Note: If you want to chage the cursor-sensor-functions property, 
 (perhaps for use with a different package) use 
-`org-clones--put-cursor-sensor-props'.  This variable is for other 
-text properties (e.g., a face, keymap, etc.)."
+`org-clones--put-clone-cursor-sensor-props'.  This variable is for other 
+text properties (e.g., a face, keymap, etc.).
+
+Note: 'face does not work with org-mode. Use 'font-lock-face.
+      'keymap does not work with org-mode. Use a keymap with
+      overlays instead." 
   :group 'org-clones
   :type 'plist)
 
 (defcustom org-clones-node-overlay-properties
   '(face org-clones-clone)
-  "List of overlay properties to place at the headline and body of 
-each node."
+  "List of overlay properties to place at the headline and body of each node."
   :group 'org-clones
   :type 'plist)
 
@@ -165,22 +219,12 @@ Must be a string other than whitespace."
 
 ;;;; Variables
 
-(defvar org-clones--cursor-sensor-functions nil
+(defvar org-clones--cursor-sensor-functions '(org-clones--text-watcher)
   "List of cursor-sensor-functions to apply to the headline
   and body of cloned nodes.")
 
-(defvar org-clones--restore-state nil
-  "When editing a clone, save the current headline and body
-  to restore if the edit is abandoned.")
-(make-variable-buffer-local 'org-clones--restore-state)
-
- (defvar org-clones--temp-marker nil
-   "Temporary storage for a marker for clone creation.")
-
-(defvar org-clones--temp-overlay nil
-  "Temporary holder for the transient headline 
-  or body overlay.")
-(make-variable-buffer-local 'org-clones--temp-overlay)
+(defvar org-clones--temp-marker nil
+  "Temporary storage for a marker for clone creation.")
 
 (defvar org-clones--org-headline-re org-outline-regexp
   "Org headline regexp.")
@@ -200,13 +244,23 @@ Must be a string other than whitespace."
   "Message displayed in the header-line when cycling
 through clones.")
 
-;;;; Keymaps
+(defvar org-clones--previous-header-line nil
+  "Temporary storage for the value of `header-line-format'.")
+(make-variable-buffer-local 'org-clones--previous-header-line)
 
-(defvar org-clones--clone-cycle-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "n") #'org-clones-cycle-through-clones)
-    map)
-  "Keymap for clone cycling.")
+(defvar org-clones--temp-overlay nil
+  "Temporary holder for the transient headline 
+  or body overlay.")
+(make-variable-buffer-local 'org-clones--temp-overlay)
+
+(defvar org-clones--restore-state nil
+  "When editing a clone, save the current headline and body
+  to restore if the edit is abandoned.")
+(make-variable-buffer-local 'org-clones--restore-state)
+
+(defvar org-clones--bounds nil
+  "The bounds of the current cloned region.")
+(make-variable-buffer-local 'org-clones--bounds)
 
 ;;;; Macros
 
@@ -216,7 +270,7 @@ through clones.")
      (when-let ((clone-ids (org-clones--get-clone-ids)))
        (cl-loop for clone-id in clone-ids
 		do (org-clones--with-point-at-id clone-id
-		     ,@body)))))
+						 ,@body)))))
 
 (defmacro org-clones--iterate-over-all-clones-in-buffer (&rest body)
   "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, 
@@ -292,32 +346,28 @@ leading stars, TODO state, and tags."
 
 (defun org-clones--delete-headline ()
   "Delete the headline of the heading at point."
-  (unless (string=
-	   (plist-get (cadr (org-element-at-point)) :raw-value)
-	   "")
-    (delete-region (org-clones--get-headline-start)
-		   (org-clones--get-headline-end))))
+  (let ((inhibit-read-only t))
+    (unless (string=
+	     (plist-get (cadr (org-element-at-point)) :raw-value)
+	     "")
+      (delete-region (org-clones--get-headline-start)
+		     (org-clones--get-headline-end)))))
 
 (defun org-clones--replace-headline (headline)
   "Replace the headline text at point with HEADLINE."
-  (save-excursion 
-    (org-clones--delete-headline)
-    (org-clones--goto-headline-start)
-    (insert headline)
-    (org--align-tags-here org-tags-column)))
+  (let ((inhibit-read-only t))
+    (save-excursion 
+      (org-clones--delete-headline)
+      (org-clones--goto-headline-start)
+      (insert headline)
+      (org--align-tags-here org-tags-column))))
 
 ;;;; Body functions 
 
 (defun org-clones--goto-body-end ()
   "Goto the end of the body of the current node, 
-and return the point."
-  (goto-char (org-entry-end-position))
-  (forward-char -1)
-  (point))
-
-(defun org-clones--goto-body-end ()
-  "Goto the end of the body of the current node, 
-and return the point."
+and return the point. The end of the body is defined
+as the last non-whitespace character before the next heading."
   (goto-char (org-entry-end-position))
   (re-search-backward org-clones--not-whitespace-re nil t)
   (goto-char (match-end 0))
@@ -334,7 +384,9 @@ parlance)?"
 
 (defun org-clones--goto-body-start ()
   "Go to the start of the body of the current node,
-and return the point."
+and return the point. The start of the body is defined as
+the point after the planning line, drawers immediately following
+the planning line, and any closing note."
   (org-end-of-meta-data t)
   (let ((section (org-clones--get-section-elements)))
     ;; This is a ridiculous way to check if there is a closing note!
@@ -342,7 +394,8 @@ and return the point."
 	     (eq (car (caddar section)) 'item)
 	     (eq (caaddr (caddar section)) 'paragraph)
 	     ;; I don't think there is a variable to control
-	     ;; the prefix of the closing note, so using "CLOSING NOTE ".
+	     ;; the prefix of the closing note, so using "CLOSING NOTE "
+	     ;; and assuming it is static.
 	     (string= (caddr (caddr (caddar section))) "CLOSING NOTE "))
 	(goto-char (plist-get (cadar section) :end)))
     (point)))
@@ -377,21 +430,23 @@ and return the point."
 ;;       (insert " "))))
 
 (defun org-clones--normalize-node-format ()
-  "Ensure there is a single space after the body of the node."
+  "Do nothing. This is a placeholder in the event that some
+formatting within the clone must be normalized for processing."
   nil)
 
 (defun org-clones--replace-body (body)
   "Replace the body of the current node with
 BODY. If BODY is nil, then use `org-clones-empty-body-string'."
-  (org-back-to-heading)
-  (save-excursion 
-    (org-clones--delete-body))
-  (org-clones--goto-body-start)
-  (save-excursion 
-    (insert (or body
-		org-clones-empty-body-string)
-	    "\n"))
-  (org-clones--normalize-node-format))
+  (let ((inhibit-read-only t))
+    (org-back-to-heading)
+    (save-excursion 
+      (org-clones--delete-body))
+    (org-clones--goto-body-start)
+    (save-excursion 
+      (insert (or body
+		  org-clones-empty-body-string)
+	      "\n"))
+    (org-clones--normalize-node-format)))
 
 (defun org-clones--parse-body ()
   "Parse all elements from the start of the body to the next node.
@@ -431,11 +486,12 @@ e.g. (:begin 1 :end 10 :contents-begin ...)."
   (cadar (org-clones--parse-body)))
 
 (defun org-clones--delete-body ()
-  (delete-region (org-clones--get-body-start)
-		 (save-excursion 
-		   (outline-next-heading) (point))))
+  (let ((inhibit-read-only t))
+    (delete-region (org-clones--get-body-start)
+		   (save-excursion 
+		     (outline-next-heading) (point)))))
 
-;;;; Clone interaction 
+;;;; Clone functions
 
 (defun org-clones--at-clone-p (&optional pos)
   "Is the current point (or POS) in a cloned node?"
@@ -448,8 +504,19 @@ nil if there are none."
    (point)
    "ORG-CLONES"))
 
+(defun org-clones--get-range-of-field-at-point ()
+  "Return a cons cell containing the start and end points
+of the headline or body of the node, depending on the location
+of the point."
+  (cond ((org-clones--at-headline-p)
+	 (cons (org-clones--get-headline-start)
+	       (org-clones--get-headline-end)))
+	((org-clones--at-body-p)
+	 (cons (org-clones--get-body-start)
+	       (org-clones--get-body-end)))))
+
 (defun org-clones--last-node-p ()
-  "Is this the last node in the document?"
+  "Is this the last node in the file?"
   (not (or (save-excursion (org-get-next-sibling))
 	   (save-excursion (org-goto-first-child)))))
 
@@ -468,26 +535,32 @@ UNFOLD is non-nil, then unfold the drawer."
 	   'no-error)
       (org-flag-drawer (not unfold)))))
 
-(defun org-clones--sync-clones ()
+(defun org-clones--sync-clones (&optional no-prompt)
   "Update all clones of the current node to match
 the headline and body of the current node and
-place text properties and overlays in the cloned nodes."
+place text properties and overlays in the cloned nodes.
+If NO-PROMPT is non-nil, do not prompt the user
+regardless of the value of `org-clones-prompt-before-syncing'."
   (interactive)
-  (org-clones--remove-clone-effects)
-  (let ((headline (org-clones--get-headline-string))
-	(body (if (string= "" (org-clones--get-body-string))
-		  org-clones-empty-body-string
-		(org-clones--get-body-string))))
-    ;; Replace the body in the current node to 
-    ;; normalize whitespace 
-    (org-clones--replace-body body)
-    (org-clones--put-clone-effects)
-    (org-clones--iterate-over-clones
-     (org-clones--remove-clone-effects)
-     (org-clones--replace-headline headline)
-     (org-clones--replace-body body)
-     (org-clones--put-clone-effects)))
-  (message "Clones updated."))
+  (if (and (not no-prompt)
+	   org-clones-prompt-before-syncing)
+      (org-clones--prompt-before-syncing)
+    (org-clones--remove-clone-effects)
+    (let ((inhibit-read-only t)
+	  (headline (org-clones--get-headline-string))
+	  (body (if (string= "" (org-clones--get-body-string))
+		    org-clones-empty-body-string
+		  (org-clones--get-body-string))))
+      ;; Replace the body in the current node to 
+      ;; normalize whitespace 
+      (org-clones--replace-body body)
+      (org-clones--put-clone-effects)
+      (org-clones--iterate-over-clones
+       (org-clones--remove-clone-effects)
+       (org-clones--replace-headline headline)
+       (org-clones--replace-body body)
+       (org-clones--put-clone-effects)))
+    (message "Clones synced.")))
 
 ;;; Overlays
 
@@ -500,7 +573,8 @@ place text properties and overlays in the cloned nodes."
 	   finally return overlay))
 
 (defun org-clones--put-node-overlay (&optional remove)
-  "Put `org-clones-node-overlay-properties' in the headline and body of the node at point. If REMOVE is non-nil, remove the overlays."
+  "Put `org-clones-node-overlay-properties' in the headline and body of
+the node at point. If REMOVE is non-nil, remove the overlays."
   (when org-clones-node-overlay-properties
     (if remove
 	(progn 
@@ -522,21 +596,25 @@ place text properties and overlays in the cloned nodes."
   "Remove `org-clones-node-overlay-properties' from the current node."
   (org-clones--put-node-overlay 'remove))
 
-(defun org-clones--put-headline-overlay ()
-  "Put overlays in `org-clones-clone-headline-overlay-props' on the current node." 
-  (org-clones--remove-headline-overlay)
-  (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
-					(org-clones--get-headline-end)))
-	(props (append org-clones-clone-headline-overlay-props
-		       '(org-clones-clone-headline-overlay t))))
-    (org-clones--put-overlay-props headline-overlay props)))
+(defun org-clones--put-headline-overlay (&optional remove)
+  "Put overlays in `org-clones-clone-headline-overlay-props' on the 
+current node. If REMOVE is non-nil, remove the the overlay."
+  (if remove
+      (remove-overlays (org-clones--get-headline-start)
+		       (org-clones--get-headline-end)
+		       'org-clones-clone-headline-overlay t)
+    (org-clones--remove-headline-overlay)
+    (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
+					  (org-clones--get-headline-end)))
+	  (props (append org-clones-clone-headline-overlay-props
+			 '(org-clones-clone-headline-overlay t))))
+      (org-clones--put-overlay-props headline-overlay props))))
 
 (defun org-clones--remove-headline-overlay ()
   "Remove the overlays in `org-clones-clone-headline-overlay-props' from the 
 current node."
-  (remove-overlays (org-clones--get-headline-start)
-		   (org-clones--get-headline-end)
-		   'org-clones-clone-headline-overlay t))
+  (org-clones--put-headline-overlay 'remove))
+
 
 ;;;; Text properties 
 
@@ -562,48 +640,36 @@ the node at point. If REMOVE is non-nil, remove the properties."
   "Remove `org-clones-node-text-properties' from the current node."
   (org-clones--put-node-text-properties 'remove))
 
-(defun org-clones--put-cursor-sensor-props (&optional remove)
-  "Put `org-clones--cursor-sensor-functions' on the headline and body
-of the current node."
-  (cl-loop for start in `(,(org-clones--get-headline-start)
-			  ,(org-clones--get-body-start))
-	   for end in `(,(org-clones--get-headline-end)
-			,(org-clones--get-body-end))
-	   do (cl-loop for func in org-clones--cursor-sensor-functions
-		       do (org-clones--change-cursor-sensor-prop
-			   start end func remove))))
 
-(defun org-clones--remove-cursor-sensor-props ()
-  "Remove `org-clones--cursor-sensor-functions' from the headline and 
-body of the current node."
-  (org-clones--put-cursor-sensor-props 'remove))
 
 (defun org-clones--put-clone-effects ()
   "Put overlay and text properties at the current
-node."
-  ;; The use of this function is redundant, but helps
-  ;; ensure that cloned nodes keep a blank line
-  ;; before the next heading. 
-  (org-clones--normalize-node-format)
-  (org-clones--put-cursor-sensor-props)
-  (org-clones--put-headline-overlay)
-  (org-clones--put-node-overlay)
-  (org-clones--put-node-text-properties)
-  (org-clones--fold-property-drawer))
+node. 'Clone effects' means: cursor sensor properties, 
+text properties, headline overlay, node overlay, and 
+automatically folding the property drawer."
+  (let ((inhibit-read-only t))
+    (org-clones--normalize-node-format)
+    (org-clones--put-clone-cursor-sensor-props)
+    (org-clones--put-headline-overlay)
+    (org-clones--put-node-overlay)
+    (org-clones--put-node-text-properties)
+    (org-clones--fold-property-drawer)))
 
 (defun org-clones--remove-clone-effects ()
   "Remove overlay and text properties at the current
 node."
-  (org-clones--remove-node-text-properties)
-  (org-clones--remove-cursor-sensor-props)
-  (org-clones--remove-node-overlays)
-  (org-clones--remove-headline-overlay))
+  (let ((inhibit-read-only t))
+    (org-clones--remove-node-text-properties)
+    (org-clones--remove-cursor-sensor-props)
+    (org-clones--remove-node-overlays)
+    (org-clones--remove-headline-overlay)))
 
 (defun org-clones--reset-clone-effects ()
   "Remove and replace all clone effects for the current 
 node."
-  (org-clones--remove-clone-effects)
-  (org-clones--put-clone-effects))
+  (let ((inhibit-read-only t))
+    (org-clones--remove-clone-effects)
+    (org-clones--put-clone-effects)))
 
 ;;;; Clean up / Emergency functions
 
@@ -613,10 +679,11 @@ node."
 	 (concat
 	  "This will remove all cursor-sensor-functions, even "
 	  "those that are not associated with org-clones. Continue?"))
-    (set-text-properties
-     (point-min)
-     (point-max)
-     '(cursor-sensor-functions nil))))
+    (let ((inhibit-read-only t))
+      (set-text-properties
+       (point-min)
+       (point-max)
+       '(cursor-sensor-functions nil)))))
 
 (defun org-clones--reset-all-clone-effects-in-buffer ()
   "Reset all clone effets on all clones in buffer."
@@ -655,126 +722,74 @@ text property."
 		    func
 		  (list func func-list)))))))))
 
-(cl-defmacro org-clones--create-text-watcher (name &key
-						   enter exit storage-form
-						   change no-change disable)
-  "Define a function for use with `cursor-sensor-mode' and the 
-associated text property, cursor-sensor-functions. 
+(defun org-clones--put-clone-cursor-sensor-props (&optional remove)
+  "Put `org-clones--cursor-sensor-functions' on the headline and body
+of the current node. Note: these are treated differently than other
+text properties because the value is a list and we need to preserve
+and pre-existing values."
+  (cl-loop for start in `(,(org-clones--get-headline-start)
+			  ,(org-clones--get-body-start))
+	   for end in `(,(org-clones--get-headline-end)
+			,(org-clones--get-body-end))
+	   do (cl-loop for func in org-clones--cursor-sensor-functions
+		       do (org-clones--change-cursor-sensor-prop
+			   start end func remove))))
 
-NAME is the name used to create the underlying function and 
-storage variable.
+(defun org-clones--remove-cursor-sensor-props ()
+  "Remove `org-clones--cursor-sensor-functions' from the headline and 
+body of the current node."
+  (org-clones--put-clone-cursor-sensor-props 'remove))
 
-ENTER is a form executed when the cursor enters the text field.
-
-When the cursor enters the text field, STORAGE-FORM will run 
-and store the return value in a variable named 
- `org-clones--text-watcher-storage-NAME'.
-(This variable is available to retrieve the initial value of the
-text field after the cursor enters the field, if needed.)
-
-STORAGE-FORM is a form which, when evaluated, returns a string. 
-The string is stored when the cursor enters the field, and when
-the cursor exits the field. If these strings are not equal, then
-evaluate CHANGE. Otherwise, evaluate NO-CHANGE. The comparison
-between of the values of STORAGE-FORM are done with `string='.
-
-EXIT is a form executed when cursor exits the text field, regardless
-of whether there was a change or not. EXIT will be evaluated before 
-CHANGE or NO CHANGE.
-
-See `cursor-sensor-mode' for more details."
-  (declare (indent defun))
-  (let ((var-name
-	 (intern (concat "org-clones--text-watcher-storage-"
-			 (symbol-name name))))
-	(function-name
-	 (intern (concat "org-clones--text-watcher-func-"
-			 (symbol-name name)))))
-    `(progn
-       (if (boundp ',var-name)
-	   (setq ,var-name nil)
-	 (defvar ,var-name nil)
-	 (make-variable-buffer-local ',var-name))
-       (defun ,function-name (_window last-pos entered-or-left)
-	 (let ((cursor-sensor-inhibit t))
-	   (pcase entered-or-left
-	     (`entered
-	      (setq ,var-name ,@storage-form)
-	      ,@enter)
-	     (`left
-	      ;; Each save excursion must to be separate because
-	      ;; any of the user functions could move the point.
-	      (save-excursion
-		(goto-char last-pos)
-		,@exit)
-	      (if (string=
-		   (save-excursion
-		     (goto-char last-pos)
-		     ,@storage-form)
-		   ,var-name)
-		  (save-excursion
-		    ,@no-change
-		    (setq ,var-name nil))
-		(setq ,var-name
-		      (save-excursion
-			(goto-char last-pos)
-			,@storage-form))
-		(save-excursion
-		  (goto-char last-pos)
-		  ,@change))
-	      (setq ,var-name nil)))))
-       (if ',disable
-	   (remove ',function-name org-clones--cursor-sensor-functions)
-	 (cl-pushnew ',function-name org-clones--cursor-sensor-functions)))))
-
-(org-clones--create-text-watcher clone-watcher
-  :enter ((message "Entered cloned!")
-	  (let (beg end)
-	    (cond ((org-clones--at-headline-p)
-		   (setq beg (org-clones--get-headline-start))
-		   (setq end (org-clones--get-headline-end)))
-		  ((org-clones--at-body-p)
-		   (setq beg (org-clones--get-body-start))
-		   (setq end (org-clones--get-body-end))))
-	    (move-overlay org-clones--temp-overlay beg end)
-	    (org-clones--begin-edit)))
-  :exit ((delete-overlay org-clones--temp-overlay))
-  :change ((org-clones--prompt-before-syncing))
-  :no-change ((message "Exited clone with no changes."))
-  :storage-form ((cond ((org-clones--at-headline-p)
-			(org-clones--get-headline-string))
-		       ((org-clones--at-body-p)
-			(org-clones--get-body-string)))))
+(defun org-clones--text-watcher (_window last-pos entered-or-left)
+  "If ENTERED-OR-LEFT is eq to 'enter, then place the transient 
+overlay in the headline or body (as appropriate) and make the text
+read only. If the value is 'left, then delete the transient overlay
+and remove the read-only text property. See `cursor-sensor-mode' for
+details on the arguments."
+  (pcase entered-or-left
+    (`entered
+     (let* ((points (org-clones--get-range-of-field-at-point))
+	    (beg (car points))
+	    (end (cdr points)))
+       (put-text-property beg end 'read-only t)
+       (move-overlay org-clones--temp-overlay beg end)))
+    (`left
+     (let* ((points
+	     (save-excursion (goto-char last-pos)
+			     (org-clones--get-range-of-field-at-point)))
+	    (beg (car points))
+	    (end (cdr points)))
+       (let ((inhibit-read-only t))
+	 (put-text-property beg end 'read-only nil)
+	 (delete-overlay org-clones--temp-overlay))))))
 
 ;;;; Editing clones
 
 (defun org-clones--begin-edit ()
-  "Save the state of a clone before an edit begins."
-  (setq org-clones--restore-state
-	(cons (org-clones--get-headline-string)
-	      (org-clones--get-body-string))))
+  "Invoke `org-clones-edit-mode'."
+  (interactive)
+  (org-clones-edit-mode 1))
 
 (defun org-clones--prompt-before-syncing ()
   "Ask the user if they want to edit the node
 without syncing the clones. If so, unlink the current 
 clone."
   (interactive)
-  (if (not org-clones-prompt-before-syncing)
-      (org-clones--sync-clones)
-    ;; Without this let, y-or-n-p pops a dialog box
-    ;; due to something with how cursor-sensor-functions
-    ;; works. 
-    (let ((last-nonmenu-event
-	   (not org-clones-use-popup-prompt)))
-      (if (y-or-n-p "Sync your changes to all clones?")
-	  (org-clones--sync-clones)
-	(if (y-or-n-p "Unsync this clone?")
-	    (org-clones-unsync-this-clone)
-	  (if (y-or-n-p "Discard this edit?")
-	      (org-clones--discard-edit)
-	    ;; If the user takes an impossible path,
-	    ;; send them back to the beginning.
-	    (org-clones--prompt-before-syncing)))))))
+  ;; Without this let, y-or-n-p pops a dialog box
+  ;; due to something with how cursor-sensor-functions
+  ;; works. 
+  (let ((last-nonmenu-event
+	 (not org-clones-use-popup-prompt)))
+    (if (y-or-n-p "Sync your changes to all clones?")
+	(org-clones--sync-clones t)
+      (if (y-or-n-p "Unsync this clone?")
+	  (org-clones-unsync-this-clone)
+	(if (y-or-n-p "Discard this edit?")
+	    (org-clones--discard-edit)
+	  ;; If the user takes an impossible path,
+	  ;; send them back to the beginning.
+	  (org-clones--prompt-before-syncing)))))
+  (org-clones-edit-mode -1))
 
 (defun org-clones--discard-edit ()
   "Discard the current edit and restore the node
@@ -785,8 +800,34 @@ to its previous state, and turn off the minor mode."
   (org-clones--replace-body
    (cdr org-clones--restore-state))
   (org-clones--put-clone-effects)
-  (message "Org-clones: Discarded edit.")
-  (setq org-clones--restore-state nil))
+  (org-clones-edit-mode -1)
+  (message "Org-clones: Discarded edit."))
+
+(define-minor-mode org-clones-edit-mode
+  "Mode to edit clones."
+  nil
+  " EDIT-CLONE"
+  org-clones--edit-mode-map
+  (if org-clones-edit-mode
+      (progn
+	(setq org-clones--previous-header-line header-line-format)
+	(setq header-line-format
+	      (format 
+	       "Edit cloned node. '%s' to finish and update. '%s' to abandon."
+	       org-clones-commit-edit-shortcut
+	       org-clones-abort-edit-shortcut))
+	(setq org-clones--restore-state
+	      (cons (org-clones--get-headline-string)
+		    (org-clones--get-body-string)))
+	(org-clones--update-bounds)
+	(let ((inhibit-read-only t))
+	  (put-text-property (car org-clones--bounds)
+			     (cdr org-clones--bounds)
+			     'read-only nil)))
+    (setq header-line-format org-clones--previous-header-line)
+    (setq org-clones--restore-state nil)
+    (setq org-clones--bounds nil)))
+
 
 ;;;; Navigating to other clones
 
@@ -822,6 +863,8 @@ to its previous state, and turn off the minor mode."
 ;;;; Commands
 
 (defun org-clones-unsync-this-clone ()
+  "Remove the org-clones property from this node, and remove this
+node's id from any nodes which contain it."
   (interactive)
   (let ((this-id (org-id-get))
 	(clone-ids (org-clones--get-clone-ids)))
@@ -858,6 +901,8 @@ to its previous state, and turn off the minor mode."
 to run `org-id-update-id-locations' for it to work property.
 This forces the user to save the buffer, and makes sure
 `org-id' can find the file and id."
+  ;; TODO: I don't think this fixes the problem.  It seems
+  ;; like a bug in `org-id'. 
   (if (buffer-file-name)
       ;; (unless (member (buffer-file-name)
       ;; 		  (hash-table-values org-id-locations))
