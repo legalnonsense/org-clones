@@ -3,6 +3,8 @@ Clone Orgmode headings so they appear in multiple locations, and sync edits betw
 * Why clones?
 I want to be able to clone an orgmode heading so that it can appear in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
 
+[Insert summary of why someone would want to use cloned nodes in an outline.]
+
 * Terminology
 I use the following teminology in the package:
 
@@ -11,7 +13,9 @@ I use the following teminology in the package:
 - Body :: everything after the headline, planning line, and property drawers until the next node.
 
 * Usage
-Place =org-clones.el= in your load path and =(require 'org-clones)=. There are no outside dependencies.
+Place =org-clones.el= in your load path and =(require 'org-clones)=. Open an orgmode file an run =(org-clones-mode)=. 
+
+There are no outside dependencies.
 ** Basics
 1. Only the headline and body of a node are cloned.
 2. Tags, TODO states, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
@@ -20,22 +24,21 @@ Place =org-clones.el= in your load path and =(require 'org-clones)=. There are n
 5. After the edit is completed, all clones will be updated automatically.
 ** Clone creation
 Put the cursor on the node you want to clone. There are two methods of creating a clone:
-
 1. Run =org-clones-create-clone=, which will create a clone of that node after the current node. You can move the new node to wherever you like through killing and yanking, refiling, or whatever. 
-
 2. Run =org-clones-store-marker=, then place the point at a new location (which can be a different org file) and run =org-clones-create-clone-from-marker=.
-
 ** Viewing clones
 To cycle through clones of the current node, run =org-clones-cycle-through-clones=. Then, press =n= to jump from one clone to another. Exit with =C-g= or any other key. 
 ** Uncloning a clone
-If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's :ORG-CLONES: property will be set to nil. 
+If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's =:ORG-CLONES:= property will be set to nil. 
 ** Caveats
 1. =Org-clones= does not check for conflicts before syncing clones. Sync at your own risk. 
 2. =Org-clones= relies on =cursor-sensor-mode=. I have not profiled to see what type of slowdown one might experience in a large file due to =cursor-sensor-mode=. My files are not large enough for this to be a concern.
 3. =Org-clones= currently relies on =org-id=. =Org-id= sometimes has problems finding the location of an id, especially in a file that has just been created. Before you blame =org-clones= for a clone not syncing, make sure the file you are using appears in =org-id-locations=. Make use of =org-id-update-id-locations= if you must. You can test whether =org-id= is working as it should by manually trying =(org-id-goto "INSERT ID HERE")=. If that does not work, =org-clones= will not work. I find that saving the file and creating a few ids with =(org-id-get-create)= in some dummy headers, and re-saving the file, solves the problem. (I have used =org-id= for years before noticing this issue and only discovered it when testing this package. Perhaps you will not encouter it.)
 4. If =org-id= cannot find a clone, it does not remove the clone from the clone list automatically. 
+* Example
+Insert screenshot here.
 * How it works
-- Clones are tracked via the property =:ORG-CLONES:= which contains a list of IDs, representing other cloned nodes. 
+- Clones are tracked via the Orgmode property =:ORG-CLONES:= which contains a list of IDs which correspond to other cloned nodes. 
 - A cursor-sensor-function property is placed on each headline and body of each node. 
 - When the cursor enters that field, =org-clones= places a transient overlay over the field to alert the user that they are on a cloned node. 
 - =Org-clones= also makes the field read-only. This prevents inadvertent edits. Because clones only become read-only when the cursor is within the field, you can still kill and yank headlines, etc., without running into issues with the text being read only. 
@@ -46,6 +49,8 @@ If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The
 * TODOs
 - [ ] write conflict check before syncing clones/when starting the mode
 - [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
+- [ ] make an animated gif for example section
+- [ ] write explanation of why one would want this feature
 * Other transclusion efforts
 Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]], meaning that text from one file appears in another place, with edits synced back to the original source. 
 
