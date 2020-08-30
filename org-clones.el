@@ -121,7 +121,7 @@ Accepts any string acceptable to `kbd'."
 	 evaporate t)
   "Properties to be added to the transient overlay."
   :group 'org-clones
-  :type 'plist)
+  :type '(plist :key-type symbol :value-type symbol))
 
 (defcustom org-clones-clone-headline-overlay-props
   `(before-string ,org-clones-clone-prefix-string
@@ -130,7 +130,7 @@ Accepts any string acceptable to `kbd'."
 cursor is on the cloned node.  Must be a plist of overlay properties.
 By default, the only thing this displays is `org-clones-clone-prefix-string'."
   :group 'org-clones
-  :type 'plist)
+  :type '(plist :key-type symbol :value-type symbol))
 
 (defcustom org-clones-node-text-properties nil
   "Text properties to place on the headline and body of each node.
@@ -143,20 +143,20 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
       'keymap does not work with org-mode. Use a keymap with
       overlays instead." 
   :group 'org-clones
-  :type 'plist)
+  :type '(plist :key-type symbol :value-type symbol))
 
 (defcustom org-clones-node-overlay-properties
   '(face org-clones-clone)
   "List of overlay properties to place at the headline and body of each node."
   :group 'org-clones
-  :type 'plist)
+  :type '(plist :key-type symbol :value-type symbol))
 
-(defcustom org-clones-empty-body-string "[empty clone body]"
-  "Place holder inserted into clones with empty bodies.  
+  (defcustom org-clones-empty-body-string "[empty clone body]"
+    "Place holder inserted into clones with empty bodies.  
 Can be any string other than whitespace.  Must end with a newline.  
 Must be a string other than whitespace."
-  :group 'org-clones
-  :type 'string)
+    :group 'org-clones
+    :type 'string)
 
 (defcustom org-clones-empty-headling-string "[empty clone headline]"
   "Place holder inserted into clones with empty headlines.  
@@ -173,6 +173,17 @@ Must be a string other than whitespace."
   "Whether to prompt the user before syncing changes to all clones."
   :group 'org-clones
   :type 'boolean)
+
+(defcustom org-clones-edit-header-line
+  '(:eval
+    (format 
+     "Edit cloned node. '%s' to finish and update. '%s' to abandon."
+     org-clones-commit-edit-shortcut
+     org-clones-abort-edit-shortcut))
+  "The value of header-line-format when `org-clones-edit-mode' is 
+invoked."
+  :group 'org-clones
+  :type 'sexp)
 
 ;;;; Keymaps
 
@@ -501,9 +512,9 @@ nil if there are none."
    "ORG-CLONES"))
 
 (defun org-clones--get-range-of-field-at-point ()
-  "Return a cons cell containing the start and end points
-of the headline or body of the node, depending on the location
-of the point."
+  "Return a cons cell with the car being the start point and
+cdr being the end point of the of the headline or body of the node,
+ depending on the location of the point."
   (cond ((org-clones--at-headline-p)
 	 (cons (org-clones--get-headline-start)
 	       (org-clones--get-headline-end)))
@@ -635,8 +646,6 @@ the node at point. If REMOVE is non-nil, remove the properties."
 (defun org-clones--remove-node-text-properties ()
   "Remove `org-clones-node-text-properties' from the current node."
   (org-clones--put-node-text-properties 'remove))
-
-
 
 (defun org-clones--put-clone-effects ()
   "Put overlay and text properties at the current
@@ -807,22 +816,27 @@ to its previous state, and turn off the minor mode."
   (if org-clones-edit-mode
       (progn
 	(setq org-clones--previous-header-line header-line-format)
-	(setq header-line-format
-	      (format 
-	       "Edit cloned node. '%s' to finish and update. '%s' to abandon."
-	       org-clones-commit-edit-shortcut
-	       org-clones-abort-edit-shortcut))
+	(setq header-line-format org-clones-edit-header-line)
 	(setq org-clones--restore-state
 	      (cons (org-clones--get-headline-string)
 		    (org-clones--get-body-string)))
-	(org-clones--update-bounds)
-	(let ((inhibit-read-only t))
-	  (put-text-property (car org-clones--bounds)
-			     (cdr org-clones--bounds)
-			     'read-only nil)))
+	(overlay-put org-clones--transient-overlay 'keymap nil)
+	(let ((inhibit-read-only t)
+	      (bounds (org-clones--get-range-of-field-at-point)))
+	  (put-text-property
+	   (car bounds)
+	   (cdr bounds)
+	   'read-only nil)))
     (setq header-line-format org-clones--previous-header-line)
-    (setq org-clones--restore-state nil)
-    (setq org-clones--bounds nil)))
+    (when (equal header-line-format
+		 org-clones--previous-header-line)
+      (setq header-line-format nil))
+    (overlay-put org-clones--transient-overlay
+		 'keymap
+		 org-clones--transient-clone-overlay-map)
+    (setq org-clones--restore-state nil)))
+
+
 
 
 ;;;; Navigating to other clones
