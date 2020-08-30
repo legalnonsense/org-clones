@@ -1,4 +1,4 @@
-Clone Orgmode headings so they appear in multiple locations. 
+Clone Orgmode headings so they appear in multiple locations, and sync edits between clones. 
 
 * Why clones?
 I want to be able to clone an orgmode heading so that it can appear in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
@@ -12,7 +12,7 @@ I use the following teminology in the package:
 
 * Usage
 Place =org-clones.el= in your load path and =(require 'org-clones)=. There are no outside dependencies.
-** Clone rules
+** Basics
 1. Only the headline and body of a node are cloned.
 2. Tags, TODO states, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
 3. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
@@ -21,14 +21,14 @@ Place =org-clones.el= in your load path and =(require 'org-clones)=. There are n
 ** Clone creation
 Put the cursor on the node you want to clone. There are two methods of creating a clone:
 
-1. Run =org-clones-create-clone=, which will create a clone of that node after the current node.
+1. Run =org-clones-create-clone=, which will create a clone of that node after the current node. You can move the new node to wherever you like through killing and yanking, refiling, or whatever. 
 
 2. Run =org-clones-store-marker=, then place the point at a new location (which can be a different org file) and run =org-clones-create-clone-from-marker=.
 
 ** Viewing clones
-To cycle through clones of the current node, run =org-clones-cycle-through-clones=. Then, press ="n"= to jump from one clone to another. Exit with =C-g= or any other key. 
+To cycle through clones of the current node, run =org-clones-cycle-through-clones=. Then, press =n= to jump from one clone to another. Exit with =C-g= or any other key. 
 ** Uncloning a clone
-If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's 
+If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's :ORG-CLONES: property will be set to nil. 
 ** Caveats
 1. =Org-clones= does not check for conflicts before syncing clones. Sync at your own risk. 
 2. =Org-clones= relies on =cursor-sensor-mode=. I have not profiled to see what type of slowdown one might experience in a large file due to =cursor-sensor-mode=. My files are not large enough for this to be a concern.
@@ -46,7 +46,6 @@ If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The
 * TODOs
 - [ ] write conflict check before syncing clones/when starting the mode
 - [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
-
 * Other transclusion efforts
 Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]], meaning that text from one file appears in another place, with edits synced back to the original source. 
 
