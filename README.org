@@ -1,9 +1,19 @@
 Clone Orgmode headings so they appear in multiple locations, and sync edits between clones. 
 
 * Why clones?
-I want to be able to clone an orgmode heading so that it can appear in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
+Anyone who has made an outline has run into the problem that an entry belongs in two places. For example:
 
-[Insert summary of why someone would want to use cloned nodes in an outline.]
+#+begin_src org 
+* Animals
+** Dogs
+** Cats
+* Things with four legs that I don’t like very much
+** Tables
+** Dogs 
+#+end_src
+Oh no. The Dogs header belongs in two places. Now suppose that the Dogs header contains everything you know about dogs. 
+
+You could handle this with links, so that you have a master Dog header and subsequent headers simply link back to it. I do not like that solution. I want to be able to clone an orgmode heading so that it can appear in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
 
 * Terminology
 I use the following teminology in the package:
