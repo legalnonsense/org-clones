@@ -12,16 +12,18 @@ I use the following teminology in the package:
 - Headline :: the headline text of the node, but does not include the headline's todo state or tags
 - Body :: everything after the headline, planning line, and property drawers until the next node.
 
-* Usage
-Place =org-clones.el= in your load path and =(require 'org-clones)=. Open an orgmode file an run =(org-clones-mode)=. 
-
-There are no outside dependencies.
-** Basics
+* Basics
 1. Only the headline and body of a node are cloned.
 2. Tags, TODO states, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
 3. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
 4. To complete an edit, type =C-c C-c= again. To discard the edit, type =C-c C-k=.
 5. After the edit is completed, all clones will be updated automatically.
+
+* Installation
+Place =org-clones.el= in your load path and =(require 'org-clones)=. Open an orgmode file an run =(org-clones-mode)=. 
+
+There are no outside dependencies.
+* Usage
 ** Clone creation
 Put the cursor on the node you want to clone. There are two methods of creating a clone:
 1. Run =org-clones-create-clone=, which will create a clone of that node after the current node. You can move the new node to wherever you like through killing and yanking, refiling, or whatever. 
