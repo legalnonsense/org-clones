@@ -79,31 +79,6 @@
 (require 'org)
 (require 'org-id)
 
-;;;; Keymaps
-
-(defvar org-clones--clone-cycle-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd org-clones-jump-to-next-clone-shortcut)
-      #'org-clones-cycle-through-clones)
-    map)
-  "Keymap for clone cycling.")
-
-(defvar org-clones--transient-clone-overlay-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd org-clones-start-edit-shortcut)
-      #'org-clones--begin-edit)
-    map)
-  "Keymap for transient overlays.")
-
-(defvar org-clones--edit-mode-map 
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd org-clones-commit-edit-shortcut)
-      #'org-clones--prompt-before-syncing)
-    (define-key map (kbd org-clones-abort-edit-shortcut)
-      #'org-clones--discard-edit)
-    map)
-  "Keymap for edit mode.")
-
 ;;;; Customization
 
 (defgroup org-clones ()
@@ -143,8 +118,7 @@ Accepts any string acceptable to `kbd'."
 (defcustom org-clones-transient-overlay-properties
   `(face org-clones-current-clone
 	 priority 1000
-	 evaporate t
-	 keymap ,org-clones--transient-clone-overlay-map)
+	 evaporate t)
   "Properties to be added to the transient overlay."
   :group 'org-clones
   :type 'plist)
@@ -200,6 +174,32 @@ Must be a string other than whitespace."
   :group 'org-clones
   :type 'boolean)
 
+;;;; Keymaps
+
+(defvar org-clones--clone-cycle-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd org-clones-jump-to-next-clone-shortcut)
+      #'org-clones-cycle-through-clones)
+    map)
+  "Keymap for clone cycling.")
+
+(defvar org-clones--transient-clone-overlay-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd org-clones-start-edit-shortcut)
+      #'org-clones--begin-edit)
+    map)
+  "Keymap for transient overlays.")
+
+(defvar org-clones--edit-mode-map 
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd org-clones-commit-edit-shortcut)
+      #'org-clones--prompt-before-syncing)
+    (define-key map (kbd org-clones-abort-edit-shortcut)
+      #'org-clones--discard-edit)
+    map)
+  "Keymap for edit mode.")
+
+
 ;;;; Faces
 
 (defgroup org-clones-faces ()
@@ -248,19 +248,15 @@ through clones.")
   "Temporary storage for the value of `header-line-format'.")
 (make-variable-buffer-local 'org-clones--previous-header-line)
 
-(defvar org-clones--temp-overlay nil
+(defvar org-clones--transient-overlay nil
   "Temporary holder for the transient headline 
   or body overlay.")
-(make-variable-buffer-local 'org-clones--temp-overlay)
+(make-variable-buffer-local 'org-clones--transient-overlay)
 
 (defvar org-clones--restore-state nil
   "When editing a clone, save the current headline and body
   to restore if the edit is abandoned.")
 (make-variable-buffer-local 'org-clones--restore-state)
-
-(defvar org-clones--bounds nil
-  "The bounds of the current cloned region.")
-(make-variable-buffer-local 'org-clones--bounds)
 
 ;;;; Macros
 
@@ -270,7 +266,7 @@ through clones.")
      (when-let ((clone-ids (org-clones--get-clone-ids)))
        (cl-loop for clone-id in clone-ids
 		do (org-clones--with-point-at-id clone-id
-						 ,@body)))))
+		     ,@body)))))
 
 (defmacro org-clones--iterate-over-all-clones-in-buffer (&rest body)
   "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, 
@@ -752,7 +748,7 @@ details on the arguments."
 	    (beg (car points))
 	    (end (cdr points)))
        (put-text-property beg end 'read-only t)
-       (move-overlay org-clones--temp-overlay beg end)))
+       (move-overlay org-clones--transient-overlay beg end)))
     (`left
      (let* ((points
 	     (save-excursion (goto-char last-pos)
@@ -761,7 +757,7 @@ details on the arguments."
 	    (end (cdr points)))
        (let ((inhibit-read-only t))
 	 (put-text-property beg end 'read-only nil)
-	 (delete-overlay org-clones--temp-overlay))))))
+	 (delete-overlay org-clones--transient-overlay))))))
 
 ;;;; Editing clones
 
@@ -984,15 +980,19 @@ whether there are any cursor-sensor-functions text
 ;;;; Initialization 
 
 (defun org-clones--initialize-temp-overlay ()
-  "Initialize temporary overlay (`org-clones--temp-overlay')
+  "Initialize temporary overlay (`org-clones--transient-overlay')
 used to highlight the clone at point. This overlay is reused
 each time the point is in the headline or body of a cloned node."
-  (setq org-clones--temp-overlay
+  (setq org-clones--transient-overlay
 	(make-overlay 1 2 nil nil t))
   (org-clones--put-overlay-props
-   org-clones--temp-overlay
+   org-clones--transient-overlay
    org-clones-transient-overlay-properties)
-  (delete-overlay org-clones--temp-overlay))
+  (org-clones--put-overlay-props
+   org-clones--transient-overlay
+   `(keymap
+     ,org-clones--transient-clone-overlay-map))
+  (delete-overlay org-clones--transient-overlay))
 
 (defun org-clones--initialize-overlays-in-buffer ()
   "Put overlays on all clones in current buffer."
