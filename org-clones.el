@@ -115,48 +115,12 @@ Accepts any string acceptable to `kbd'."
   :group 'org-clones
   :type 'string)
 
-(defcustom org-clones-transient-overlay-properties
-  `(face org-clones-current-clone
-	 priority 1000
-	 evaporate t)
-  "Properties to be added to the transient overlay."
-  :group 'org-clones
-  :type '(plist :key-type symbol :value-type symbol))
-
-(defcustom org-clones-clone-headline-overlay-props
-  `(before-string ,org-clones-clone-prefix-string
-		  evaporate t)
-  "Overlays placed on each clone, regardless of whether the 
-cursor is on the cloned node.  Must be a plist of overlay properties.
-By default, the only thing this displays is `org-clones-clone-prefix-string'."
-  :group 'org-clones
-  :type '(plist :key-type symbol :value-type symbol))
-
-(defcustom org-clones-node-text-properties nil
-  "Text properties to place on the headline and body of each node.
-Note: If you want to chage the cursor-sensor-functions property, 
-(perhaps for use with a different package) use 
-`org-clones--put-clone-cursor-sensor-props'.  This variable is for other 
-text properties (e.g., a face, keymap, etc.).
-
-Note: 'face does not work with org-mode. Use 'font-lock-face.
-      'keymap does not work with org-mode. Use a keymap with
-      overlays instead." 
-  :group 'org-clones
-  :type '(plist :key-type symbol :value-type symbol))
-
-(defcustom org-clones-node-overlay-properties
-  '(face org-clones-clone)
-  "List of overlay properties to place at the headline and body of each node."
-  :group 'org-clones
-  :type '(plist :key-type symbol :value-type symbol))
-
-  (defcustom org-clones-empty-body-string "[empty clone body]"
-    "Place holder inserted into clones with empty bodies.  
+(defcustom org-clones-empty-body-string "[empty clone body]"
+  "Place holder inserted into clones with empty bodies.  
 Can be any string other than whitespace.  Must end with a newline.  
 Must be a string other than whitespace."
-    :group 'org-clones
-    :type 'string)
+  :group 'org-clones
+  :type 'string)
 
 (defcustom org-clones-empty-headling-string "[empty clone headline]"
   "Place holder inserted into clones with empty headlines.  
@@ -173,17 +137,6 @@ Must be a string other than whitespace."
   "Whether to prompt the user before syncing changes to all clones."
   :group 'org-clones
   :type 'boolean)
-
-(defcustom org-clones-edit-header-line
-  '(:eval
-    (format 
-     "Edit cloned node. '%s' to finish and update. '%s' to abandon."
-     org-clones-commit-edit-shortcut
-     org-clones-abort-edit-shortcut))
-  "The value of header-line-format when `org-clones-edit-mode' is 
-invoked."
-  :group 'org-clones
-  :type 'sexp)
 
 ;;;; Keymaps
 
@@ -209,7 +162,6 @@ invoked."
       #'org-clones--discard-edit)
     map)
   "Keymap for edit mode.")
-
 
 ;;;; Faces
 
@@ -254,6 +206,44 @@ invoked."
   "Press 'n' to jump to next clone; any key to quit."
   "Message displayed in the header-line when cycling
 through clones.")
+
+(defvar org-clones--transient-overlay-properties
+  `(face org-clones-current-clone
+	 keymap ,org-clones--transient-clone-overlay-map
+	 priority 1000
+	 evaporate t)
+  "Properties to be added to the transient overlay.")
+
+(defvar org-clones--clone-headline-overlay-props
+  `(before-string ,org-clones-clone-prefix-string
+		  evaporate t)
+  "Overlays placed on each clone, regardless of whether the 
+cursor is on the cloned node.  Must be a plist of overlay properties.
+By default, the only thing this displays is `org-clones-clone-prefix-string'.")
+
+(defvar org-clones--edit-mode-header-line
+  '(:eval
+    (format 
+     "Edit cloned node. '%s' to finish and update. '%s' to abandon."
+     org-clones-commit-edit-shortcut
+     org-clones-abort-edit-shortcut))
+  "The value of header-line-format when `org-clones-edit-mode' is 
+invoked.")
+
+(defvar org-clones--node-text-properties nil
+  "Text properties to place on the headline and body of each node.
+Note: If you want to chage the cursor-sensor-functions property, 
+(perhaps for use with a different package) use 
+`org-clones--put-clone-cursor-sensor-props'.  This variable is for other 
+text properties (e.g., a face, keymap, etc.).
+
+Note: 'face does not work with org-mode. Use 'font-lock-face.
+      'keymap does not work with org-mode. Use a keymap with
+      overlays instead." )
+
+(defvar org-clones--node-overlay-properties
+  '(face org-clones-clone)
+  "Overlay properties placed at the headline and body of each node.")
 
 (defvar org-clones--previous-header-line nil
   "Temporary storage for the value of `header-line-format'.")
@@ -437,8 +427,7 @@ the planning line, and any closing note."
 ;;       (insert " "))))
 
 (defun org-clones--normalize-node-format ()
-  "Do nothing. This is a placeholder in the event that some
-formatting within the clone must be normalized for processing."
+  "Placeholder for normalizing the format of a node."
   nil)
 
 (defun org-clones--replace-body (body)
@@ -559,7 +548,7 @@ regardless of the value of `org-clones-prompt-before-syncing'."
 		    org-clones-empty-body-string
 		  (org-clones--get-body-string))))
       ;; Replace the body in the current node to 
-      ;; normalize whitespace 
+      ;; normalize whitespace
       (org-clones--replace-body body)
       (org-clones--put-clone-effects)
       (org-clones--iterate-over-clones
@@ -580,9 +569,9 @@ regardless of the value of `org-clones-prompt-before-syncing'."
 	   finally return overlay))
 
 (defun org-clones--put-node-overlay (&optional remove)
-  "Put `org-clones-node-overlay-properties' in the headline and body of
+  "Put `org-clones--node-overlay-properties' in the headline and body of
 the node at point. If REMOVE is non-nil, remove the overlays."
-  (when org-clones-node-overlay-properties
+  (when org-clones--node-overlay-properties
     (if remove
 	(progn 
 	  (remove-overlays (org-clones--get-headline-start)
@@ -595,16 +584,16 @@ the node at point. If REMOVE is non-nil, remove the overlays."
 					     (org-clones--get-headline-end)))
 	     (body-overlay (make-overlay (org-clones--get-body-start)
 					 (org-clones--get-body-end)))
-	     (props (append org-clones-node-overlay-properties '(org-clones-user-overlay t))))
+	     (props (append org-clones--node-overlay-properties '(org-clones-user-overlay t))))
 	(cons (org-clones--put-overlay-props headline-overlay props)
 	      (org-clones--put-overlay-props body-overlay props))))))
 
 (defun org-clones--remove-node-overlays ()
-  "Remove `org-clones-node-overlay-properties' from the current node."
+  "Remove `org-clones--node-overlay-properties' from the current node."
   (org-clones--put-node-overlay 'remove))
 
 (defun org-clones--put-headline-overlay (&optional remove)
-  "Put overlays in `org-clones-clone-headline-overlay-props' on the 
+  "Put overlays in `org-clones--clone-headline-overlay-props' on the 
 current node. If REMOVE is non-nil, remove the the overlay."
   (if remove
       (remove-overlays (org-clones--get-headline-start)
@@ -613,12 +602,12 @@ current node. If REMOVE is non-nil, remove the the overlay."
     (org-clones--remove-headline-overlay)
     (let ((headline-overlay (make-overlay (org-clones--get-headline-start)
 					  (org-clones--get-headline-end)))
-	  (props (append org-clones-clone-headline-overlay-props
+	  (props (append org-clones--clone-headline-overlay-props
 			 '(org-clones-clone-headline-overlay t))))
       (org-clones--put-overlay-props headline-overlay props))))
 
 (defun org-clones--remove-headline-overlay ()
-  "Remove the overlays in `org-clones-clone-headline-overlay-props' from the 
+  "Remove the overlays in `org-clones--clone-headline-overlay-props' from the 
 current node."
   (org-clones--put-headline-overlay 'remove))
 
@@ -626,9 +615,9 @@ current node."
 ;;;; Text properties 
 
 (defun org-clones--put-node-text-properties (&optional remove)
-  "Put `org-clones-node-text-properties' in the headline and body of
+  "Put `org-clones--node-text-properties' in the headline and body of
 the node at point. If REMOVE is non-nil, remove the properties."
-  (when org-clones-node-text-properties
+  (when org-clones--node-text-properties
     (cl-loop for start in `(,(org-clones--get-headline-start)
 			    ,(org-clones--get-body-start))
 	     for end in `(,(org-clones--get-headline-end)
@@ -637,14 +626,14 @@ the node at point. If REMOVE is non-nil, remove the properties."
 		     (remove-list-of-text-properties
 		      start
 		      end
-		      org-clones-node-text-properties)
+		      org-clones--node-text-properties)
 		   (add-text-properties
 		    start
 		    end
-		    org-clones-node-text-properties)))))
+		    org-clones--node-text-properties)))))
 
 (defun org-clones--remove-node-text-properties ()
-  "Remove `org-clones-node-text-properties' from the current node."
+  "Remove `org-clones--node-text-properties' from the current node."
   (org-clones--put-node-text-properties 'remove))
 
 (defun org-clones--put-clone-effects ()
@@ -708,7 +697,7 @@ node."
   "Add FUNC to the list of cursor-sensor-functions from BEG to END. If REMOVE
 is non-nil, then remove FUNC from the cursor-sensor-functions property. This 
 preserves any other functions already stored in the cursor-sensor-fucntions 
-text property."
+text property, so it will not interfere with other modes using that text property."
   (cl-loop
    for pos from beg to end
    do (let ((func-list (get-text-property pos 'cursor-sensor-functions)))
@@ -781,8 +770,7 @@ without syncing the clones. If so, unlink the current
 clone."
   (interactive)
   ;; Without this let, y-or-n-p pops a dialog box
-  ;; due to something with how cursor-sensor-functions
-  ;; works. 
+  ;; by default due to something involving `cursor-sensor-mode'
   (let ((last-nonmenu-event
 	 (not org-clones-use-popup-prompt)))
     (if (y-or-n-p "Sync your changes to all clones?")
@@ -816,7 +804,7 @@ to its previous state, and turn off the minor mode."
   (if org-clones-edit-mode
       (progn
 	(setq org-clones--previous-header-line header-line-format)
-	(setq header-line-format org-clones-edit-header-line)
+	(setq header-line-format org-clones--edit-mode-header-line)
 	(setq org-clones--restore-state
 	      (cons (org-clones--get-headline-string)
 		    (org-clones--get-body-string)))
@@ -836,39 +824,39 @@ to its previous state, and turn off the minor mode."
 		 org-clones--transient-clone-overlay-map)
     (setq org-clones--restore-state nil)))
 
-
-
-
 ;;;; Navigating to other clones
 
 (defun org-clones-cycle-through-clones ()
+  "Allow the user to cycle through any clones 
+of the node at point by pressing `org-clones-jump-to-next-clone-shortcut'."
   (interactive)
-  (unless org-clones--clone-cycle-list
-    (setq org-clones--clone-cycle-list
-	  (append (org-clones--get-clone-ids)
-		  (list (org-id-get)))))
-  (when org-clones--clone-cycle-list
-    (set-transient-map
-     org-clones--clone-cycle-map t
-     ;; Cleanup function for the transient keymap
-     (lambda ()
-       (setq org-clones--clone-cycle-list nil)
-       (cl-loop for (buffer . header) in
-		org-clones--clone-cycle-buffer-list
-		do (with-current-buffer buffer
-		     (setq header-line-format header)))
-       (setq org-clones--clone-cycle-buffer-list nil)))
-    (let ((last-pop (pop org-clones--clone-cycle-list)))
-      (org-id-goto last-pop)
-      (cl-pushnew (cons (buffer-name)
-			header-line-format)
-		  org-clones--clone-cycle-buffer-list
-		  :test 'equal)
-      (setq header-line-format
-	    org-clones--clone-cycle-header-msg)
+  (when (org-clones--at-clone-p)
+    (unless org-clones--clone-cycle-list
       (setq org-clones--clone-cycle-list
-	    (append org-clones--clone-cycle-list
-		    (list last-pop))))))
+	    (append (org-clones--get-clone-ids)
+		    (list (org-id-get)))))
+    (when org-clones--clone-cycle-list
+      (set-transient-map
+       org-clones--clone-cycle-map t
+       ;; Cleanup function for the transient keymap
+       (lambda ()
+	 (setq org-clones--clone-cycle-list nil)
+	 (cl-loop for (buffer . header) in
+		  org-clones--clone-cycle-buffer-list
+		  do (with-current-buffer buffer
+		       (setq header-line-format header)))
+	 (setq org-clones--clone-cycle-buffer-list nil)))
+      (let ((last-pop (pop org-clones--clone-cycle-list)))
+	(org-id-goto last-pop)
+	(cl-pushnew (cons (buffer-name)
+			  header-line-format)
+		    org-clones--clone-cycle-buffer-list
+		    :test 'equal)
+	(setq header-line-format
+	      org-clones--clone-cycle-header-msg)
+	(setq org-clones--clone-cycle-list
+	      (append org-clones--clone-cycle-list
+		      (list last-pop)))))))
 
 ;;;; Commands
 
@@ -993,19 +981,15 @@ whether there are any cursor-sensor-functions text
 
 ;;;; Initialization 
 
-(defun org-clones--initialize-temp-overlay ()
-  "Initialize temporary overlay (`org-clones--transient-overlay')
+(defun org-clones--initialize-transient-overlay ()
+  "Initialize `org-clones--transient-overlay'
 used to highlight the clone at point. This overlay is reused
 each time the point is in the headline or body of a cloned node."
   (setq org-clones--transient-overlay
 	(make-overlay 1 2 nil nil t))
   (org-clones--put-overlay-props
    org-clones--transient-overlay
-   org-clones-transient-overlay-properties)
-  (org-clones--put-overlay-props
-   org-clones--transient-overlay
-   `(keymap
-     ,org-clones--transient-clone-overlay-map))
+   org-clones--transient-overlay-properties)
   (delete-overlay org-clones--transient-overlay))
 
 (defun org-clones--initialize-overlays-in-buffer ()
@@ -1021,7 +1005,7 @@ each time the point is in the headline or body of a cloned node."
   nil
   (if org-clones-mode
       (progn
-	(org-clones--initialize-temp-overlay)
+	(org-clones--initialize-transient-overlay)
 	(org-clones--reset-all-clone-effects-in-buffer)
 	(org-clones--initialize-overlays-in-buffer)
 	(cursor-sensor-mode 1))
