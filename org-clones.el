@@ -133,7 +133,7 @@ Must be a string other than whitespace."
   :group 'org-clones
   :type 'boolean)
 
-(defcustom org-clones-prompt-before-syncing t
+(defcustom org-clones-prompt-before-syncing nil
   "Whether to prompt the user before syncing changes to all clones."
   :group 'org-clones
   :type 'boolean)
@@ -746,7 +746,9 @@ details on the arguments."
 	    (beg (car points))
 	    (end (cdr points)))
        (put-text-property beg end 'read-only t)
-       (move-overlay org-clones--transient-overlay beg end)))
+       (move-overlay org-clones--transient-overlay beg end)
+       (message "Entered cloned node. Type '%s' to edit."
+		org-clones-start-edit-shortcut)))
     (`left
      (let* ((points
 	     (save-excursion (goto-char last-pos)
@@ -915,6 +917,8 @@ add clone properties to the source, add clone properties to the clone
 and add the headline and body from the source to the clone.  
 SOURCE-POINT is a marker for the location of the source node"
   (interactive)
+  (unless org-clones-mode
+    (org-clones-mode 1))
   (let (source-headline source-body source-id source-clone-list	clone-id)
     ;; At the new heading...
     (org-insert-heading-respect-content)

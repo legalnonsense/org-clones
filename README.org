@@ -1,73 +1,60 @@
-LOOK AWAY. I AM HIDEOUS. 
-
-This is in progress so keep your creeper eyes away from it. 
-
-A lot has changed. Do not look at this read me. 
-
-I have been through hell and back trying to figure out the best way to do this and the fact is there is no simple and/or elegant solution.
-
-* Ideas for orgmode clones
-
-I want to be able to clone an orgmode heading so that it can appear in different places in an outline. When I edit one of these headings, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
+Clone Orgmode headings so they appear in multiple locations. 
 
 * Why clones?
-Let’s say you have an outline with two headings:
+I want to be able to clone an orgmode heading so that it can appear in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones. It is a feature of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
 
-#+begin_src org
-* Animals
-* Animals you can eat
-#+end_src
-
-And you want to add a heading for chickens. Oh shit. Where does it go? It goes under both headings. Until now, orgmode could not do that. Now, it can /kind of/ do it. 
-
-#+begin_src org
-* Animals
-** Chickens
-* Animals you can eat
-** Chickens
-#+end_src
-
-Watch: [insert demo.]
 * Terminology
-I use the following words to describe the following things:
+I use the following teminology in the package:
 
-"Node" means an entry in an org outline. 
+- Node :: an entry in an org outline. 
+- Headline :: the headline text of the node, but does not include the headline's todo state or tags
+- Body :: everything after the headline, planning line, and property drawers until the next node.
 
-"Headline" means the headline text of the entry, but does not include the headline's todo state or tags
-
-"Body" means everything after the headline, planning line, and property drawers until the next node.
-
-* Installation 
-** Dependencies
-None except org and org-id
 * Usage
-* Task list
-- [ ] What the fuck is up with the org-id problem!? [I don’t know yet.]
-- [X] Write functions to jump to next clone [just need to figure out the header line problem, or use a different way of handling it.]
-- [X] Clean up overlay and text properties
-- [X] When the point enters a sensor field, add a space to be able to add to the end of the field [solution was a disaster]
-- [X] Remove =org-ql=
-- [X] Remove =org-ml=
-- [X] Remove =ov=
-- [X] Fix putting all clone effects on startup so it is properly recursive [no recursion; done though enabling mode]
-- [X] Fix =org-clones--goto-body-start= to skip closing note logs [also harder than I thought]
-- [X] Figure out how to handle having multiple buffers open
-- [X] Get rid of goto-headline-start... and similar functions (only need get- functions) [abandoned]
-- [X] Fix org-clones--remove-text-properties to remove only the text props at issue
-- [X] When removing cursor-sensor text properties, only remove our function from the list and preserve any other functions
-- [X] Fix removing overlays 
+Place =org-clones.el= in your load path and =(require 'org-clones)=. There are no outside dependencies.
+** Clone rules
+1. Only the headline and body of a node are cloned.
+2. Tags, TODO states, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
+3. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
+4. To complete an edit, type =C-c C-c= again. To discard the edit, type =C-c C-k=.
+5. After the edit is completed, all clones will be updated automatically.
+** Clone creation
+Put the cursor on the node you want to clone. There are two methods of creating a clone:
 
+1. Run =org-clones-create-clone=, which will create a clone of that node after the current node.
 
+2. Run =org-clones-store-marker=, then place the point at a new location (which can be a different org file) and run =org-clones-create-clone-from-marker=.
 
+** Viewing clones
+To cycle through clones of the current node, run =org-clones-cycle-through-clones=. Then, press ="n"= to jump from one clone to another. Exit with =C-g= or any other key. 
+** Uncloning a clone
+If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's 
+** Caveats
+1. =Org-clones= does not check for conflicts before syncing clones. Sync at your own risk. 
+2. =Org-clones= relies on =cursor-sensor-mode=. I have not profiled to see what type of slowdown one might experience in a large file due to =cursor-sensor-mode=. My files are not large enough for this to be a concern.
+3. =Org-clones= currently relies on =org-id=. =Org-id= sometimes has problems finding the location of an id, especially in a file that has just been created. Before you blame =org-clones= for a clone not syncing, make sure the file you are using appears in =org-id-locations=. Make use of =org-id-update-id-locations= if you must. You can test whether =org-id= is working as it should by manually trying =(org-id-goto "INSERT ID HERE")=. If that does not work, =org-clones= will not work. I find that saving the file and creating a few ids with =(org-id-get-create)= in some dummy headers, and re-saving the file, solves the problem. (I have used =org-id= for years before noticing this issue and only discovered it when testing this package. Perhaps you will not encouter it.)
+4. If =org-id= cannot find a clone, it does not remove the clone from the clone list automatically. 
+* How it works
+- Clones are tracked via the property =:ORG-CLONES:= which contains a list of IDs, representing other cloned nodes. 
+- A cursor-sensor-function property is placed on each headline and body of each node. 
+- When the cursor enters that field, =org-clones= places a transient overlay over the field to alert the user that they are on a cloned node. 
+- =Org-clones= also makes the field read-only. This prevents inadvertent edits. Because clones only become read-only when the cursor is within the field, you can still kill and yank headlines, etc., without running into issues with the text being read only. 
+- The transient overlay has a keymap which uses =org-clones-start-edit-shortcut=, bound to =C-c C-c= by default. 
+- Once the edit mode is invoked, the read-only text property is removed, the header-line appears to remind the user they are editing a clone and showing the shortcuts to commit or abandon the edit. These shortcuts are set with =org-clones-start-edit-shortcut= (=C-c C-c= by default) and =org-clones-abort-edit-shortcut= (=C-c C-k= by default).  
+- When the user terminates the edit, the read-only text properties are replaced, the header-line is reset to its previous value, and the transient overlay is replaced. Other variables (recording the state of the node before the edit, etc.) are reset to nil). If the user has committed the edit, all other clones are synced automatically.
+- When the cursor exits a cloned field, the transient overlay is removed. 
+* TODOs
+- [ ] write conflict check before syncing clones/when starting the mode
+- [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
 
 * Other transclusion efforts
-Here are some other transclusion efforts or discussions of such efforts:
+Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]], meaning that text from one file appears in another place, with edits synced back to the original source. 
+
+Here are other Emacs transclusion efforts (or discussions of such efforts):
 
 https://github.com/alphapapa/transclusion-in-emacs
 
-https://github.com/justintaft/emacs-transclusion/blob/master/emacs-transclusion.el
+https://github.com/justintaft/emacs-transclusion
 
 https://github.com/gregdetre/emacs-freex
-
-All very interesting, but I want one thing: headings that can appear anywhere that will be synced when edited. That’s it. 
 
