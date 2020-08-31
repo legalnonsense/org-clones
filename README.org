@@ -101,9 +101,11 @@ Insert screenshot here.
 - [ ] write conflict check before syncing clones/when starting the mode
 - [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
 - [ ] make an animated gif for example section
-* Bugs
+- [ ] pick a less offensive face for the current clone
+* Known Bugs
 - [ ] Error when putting the text properties on a body when the the last point of the body is the last point of the buffer
-- [ ] clone overlay icon disappears when killing and yanking a clone to a new location [solve by getting rid of `evaporate overlay property]
+- [ ] Clone overlay icon disappears when killing and yanking a clone to a new location [solve by getting rid of `evaporate overlay property]
+- [ ] if a clone is folded when synced, the new body will not be hidden properly until the outline visibility is cycled
 
 * Other transclusion efforts
 Here are other Emacs transclusion efforts (or discussions of such efforts):
