@@ -1,3 +1,5 @@
+This package is not ready yet. Privacy please. 
+
 Clone Orgmode headings so they appear in multiple locations, and sync edits between clones. 
 
 * Why clones?
@@ -19,6 +21,8 @@ Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]
 
 [insert animated gif]
 
+My use case is that I maintain one org file with ongoing research. This file is full of well-written and researched academic work, half-thoughts, notes, links, etc. Sometimes I need to use that research in a paper I am writing. When I do so, I inevitably edit and expand (or contract) the work I have already done. I want this new work—even though it is being written in a different file—to be synced back to my master research file. Before now, there did not appear to be a good way to do this simple thing.[fn:1] 
+
 * Terminology
 I use the following teminology in the package:
 
@@ -28,10 +32,12 @@ I use the following teminology in the package:
 
 * Basics
 1. Only the headline and body of a node are cloned.
-2. Tags, TODO states, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
-3. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
-4. To complete an edit, type =C-c C-c= again. To discard the edit, type =C-c C-k=.
-5. After the edit is completed, all clones will be updated automatically.
+2. Tags, TODO states, planning lines, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
+3. Child nodes are not cloned. Only the node itself is cloned. If you want the children to be cloned, you must clone them separately. 
+4. Clones can be reordered, promoted, demoted, and appear anywhere in an org outline. 
+5. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
+6. To complete an edit, type =C-c C-c= again. To discard the edit, type =C-c C-k=.
+7. After the edit is completed, all clones will be updated automatically.
 
 * Installation
 Place =org-clones.el= in your load path and =(require 'org-clones)=. Open an orgmode file an run =(org-clones-mode)=. 
@@ -75,3 +81,6 @@ https://github.com/justintaft/emacs-transclusion
 
 https://github.com/gregdetre/emacs-freex
 
+* Footnotes
+
+[fn:1] I do not use =org-roam=, =org-brain=, or any other package. My brain is simple. I like outlines and only outlines. Anything beyond that results in diministed productivity. 
