@@ -110,7 +110,7 @@ Accepts any string acceptable to `kbd'."
   :group 'org-clones
   :type 'string)
 
-(defcustom org-clones-clone-prefix-string "◈ "
+(defcustom org-clones-clone-prefix-icon "◈ "
   "String prepended to the headline of a cloned node."
   :group 'org-clones
   :type 'string)
@@ -211,15 +211,15 @@ through clones.")
   `(face org-clones-current-clone
 	 keymap ,org-clones--transient-clone-overlay-map
 	 priority 1000
-	 evaporate t)
+	 evaporate nil)
   "Properties to be added to the transient overlay.")
 
 (defvar org-clones--clone-headline-overlay-props
-  `(before-string ,org-clones-clone-prefix-string
+  `(before-string ,org-clones-clone-prefix-icon
 		  evaporate t)
   "Overlays placed on each clone, regardless of whether the 
 cursor is on the cloned node.  Must be a plist of overlay properties.
-By default, the only thing this displays is `org-clones-clone-prefix-string'.")
+By default, the only thing this displays is `org-clones-clone-prefix-icon'.")
 
 (defvar org-clones--edit-mode-header-line
   '(:eval
@@ -681,7 +681,6 @@ node."
 
 (defun org-clones--reset-all-clone-effects-in-buffer ()
   "Reset all clone effets on all clones in buffer."
-  (org-clones--remove-all-cursor-sensors-in-buffer)
   (org-clones--iterate-over-all-clones-in-buffer
    (org-clones--remove-clone-effects)
    (org-clones--put-clone-effects)))
@@ -778,7 +777,7 @@ clone."
     (if (y-or-n-p "Sync your changes to all clones?")
 	(org-clones--sync-clones t)
       (if (y-or-n-p "Unsync this clone?")
-	  (org-clones-unsync-this-clone)
+	  (org-clones-unclone-this-clone)
 	(if (y-or-n-p "Discard this edit?")
 	    (org-clones--discard-edit)
 	  ;; If the user takes an impossible path,
@@ -859,7 +858,7 @@ of the node at point by pressing `org-clones-jump-to-next-clone-shortcut'."
 
 ;;;; Commands
 
-(defun org-clones-unsync-this-clone ()
+(defun org-clones-unclone-this-clone ()
   "Remove the org-clones property from this node, and remove this
 node's id from any nodes which contain it."
   (interactive)

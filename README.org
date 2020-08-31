@@ -48,17 +48,40 @@ There are no outside dependencies.
 Put the cursor on the node you want to clone. There are two methods of creating a clone:
 1. Run =org-clones-create-clone=, which will create a clone of that node after the current node. You can move the new node to wherever you like through killing and yanking, refiling, or whatever. 
 2. Run =org-clones-store-marker=, then place the point at a new location (which can be a different org file) and run =org-clones-create-clone-from-marker=.
+** Display 
+1. Clones are marked by placing an icon in front of the clone’s headline. This icon can be customized by changing =org-clones-clone-prefix-icon=
 ** Viewing clones
 To cycle through clones of the current node, run =org-clones-cycle-through-clones=. Then, press =n= to jump from one clone to another. Exit with =C-g= or any other key. 
 ** Uncloning a clone
-If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's =:ORG-CLONES:= property will be set to nil. 
+If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's =:ORG-CLONES:= property will be set to nil. The node’s state will not otherwise be affected. 
 ** Caveats
-1. =Org-clones= does not check for conflicts before syncing clones. Sync at your own risk. 
+1. =Org-clones= does not (currently) check for conflicts before syncing clones. Sync at your own risk. 
 2. =Org-clones= relies on =cursor-sensor-mode=. I have not profiled to see what type of slowdown one might experience in a large file due to =cursor-sensor-mode=. My files are not large enough for this to be a concern.
-3. =Org-clones= currently relies on =org-id=. =Org-id= sometimes has problems finding the location of an id, especially in a file that has just been created. Before you blame =org-clones= for a clone not syncing, make sure the file you are using appears in =org-id-locations=. Make use of =org-id-update-id-locations= if you must. You can test whether =org-id= is working as it should by manually trying =(org-id-goto "INSERT ID HERE")=. If that does not work, =org-clones= will not work. I find that saving the file and creating a few ids with =(org-id-get-create)= in some dummy headers, and re-saving the file, solves the problem. (I have used =org-id= for years before noticing this issue and only discovered it when testing this package. Perhaps you will not encouter it.)
+3. =Org-clones= currently relies on =org-id=. =Org-id= sometimes has problems finding the location of an id, especially in a file that has just been created. Before you blame =org-clones= for a clone not syncing, make sure the file you are using appears in =org-id-locations=. Make use of =org-id-update-id-locations= if you must. You can test whether =org-id= is working as it should by manually trying =(org-id-goto "INSERT ID HERE")=. If that does not work, =org-clones= will not work. I find that saving the file and creating a few ids with =(org-id-get-create)= in some dummy headers, and re-saving the file, eventually solves the problem. (I have used =org-id= for years before noticing this issue and only discovered it when testing this package. Perhaps you will not encouter it.)
 4. If =org-id= cannot find a clone, it does not remove the clone from the clone list automatically. 
 * Example
 Insert screenshot here.
+* Customization 
+** Faces
+| Face                     | Usage                                                                                                     |
+|--------------------------+-----------------------------------------------------------------------------------------------------------|
+| org-clones-current-clone | Applied to the headline or body of a clone, depending on whether the point is within the headline or body |
+| org-clones-clone         | Applied to the headline and body of every clone, regardless of whether the point is on the clone          |
+** Variables
+
+| Variable                               | Behavior                                                                                                      | Default value            |
+|----------------------------------------+---------------------------------------------------------------------------------------------------------------+--------------------------|
+| =org-clones-commit-edit-shortcut=        | Shortcut to commit an edit to a clone and sync all clones                                                     | ="C-c C-c"=                |
+| =org-clones-abort-edit-shortcut=         | Shortcut to abort an edit and return the clone to its previos state                                           | ="C-c C-k"=                |
+| =org-clones-start-edit-shortcut=         | Shortcut to start editing a clone, when the cursor is in a cloned region                                      | ="C-c C-c"=                |
+| =org-clones-jump-to-next-clone-shortcut= | Shortcut to cycle to the next clone after running =(org-clones-cycle-through-clones)=                           | ="n"=                      |
+| =org-clones-clone-prefix-icon=           | Icon which precedes the headline of any cloned node                                                           | ="◈ "=                     |
+| =org-clones-empty-body-string=           | You're not allowed to have a blank body in a clone. If you clone a node without a body, use this place holder | ="[empty clone body]"=     |
+| =org-clones-empty-headling-string=       | I don't know why anyone woudl clone a node without a headline, but in case you try, use this place holder     | ="[empty clone headline]"= |
+| =org-clones-prompt-before-syncing=       | Do you want an extra warning before syncing clones?                                                           | nil                      |
+| =org-clones-use-popup-prompt=            | If you do want an extra warning, do you want it in the minibuffer (default) or a pop up window?               | nil                      |
+
+
 * How it works
 - Clones are tracked via the Orgmode property =:ORG-CLONES:= which contains a list of IDs which correspond to other cloned nodes. 
 - A cursor-sensor-function property is placed on each headline and body of each node. 
@@ -72,6 +95,10 @@ Insert screenshot here.
 - [ ] write conflict check before syncing clones/when starting the mode
 - [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
 - [ ] make an animated gif for example section
+* Bugs
+- [ ] Error when putting the text properties on a body when the the last point of the body is the last point of the buffer
+- [ ] clone overlay icon disappears when killing and yanking a clone to a new location [solve by getting rid of `evaporate overlay property]
+
 * Other transclusion efforts
 Here are other Emacs transclusion efforts (or discussions of such efforts):
 
