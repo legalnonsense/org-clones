@@ -157,7 +157,7 @@ Must be a string other than whitespace."
 (defvar org-clones--edit-mode-map 
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd org-clones-commit-edit-shortcut)
-      #'org-clones--prompt-before-syncing)
+      #'org-clones--sync-clones)
     (define-key map (kbd org-clones-abort-edit-shortcut)
       #'org-clones--discard-edit)
     map)
@@ -556,7 +556,7 @@ regardless of the value of `org-clones-prompt-before-syncing'."
        (org-clones--replace-headline headline)
        (org-clones--replace-body body)
        (org-clones--put-clone-effects))))
-  (message "Clones synced.")))
+  (message "Clones synced."))
 
 ;;; Overlays
 
@@ -856,7 +856,55 @@ of the node at point by pressing `org-clones-jump-to-next-clone-shortcut'."
 	      (append org-clones--clone-cycle-list
 		      (list last-pop)))))))
 
+;;;; Initialization 
+
+(defun org-clones--initialize-transient-overlay ()
+  "Initialize `org-clones--transient-overlay'
+used to highlight the clone at point. This overlay is reused
+each time the point is in the headline or body of a cloned node."
+  (setq org-clones--transient-overlay
+	(make-overlay 1 2 nil nil t))
+  (org-clones--put-overlay-props
+   org-clones--transient-overlay
+   org-clones--transient-overlay-properties)
+  (delete-overlay org-clones--transient-overlay))
+
+(defun org-clones--initialize-overlays-in-buffer ()
+  "Put overlays on all clones in current buffer."
+  (org-clones--iterate-over-all-clones-in-buffer 
+   (org-clones--put-headline-overlay)))
+
+(defun org-clones--cursor-sensor-mode-check ()
+  "Turn `cursor-sensor-mode' on or off depending on 
+whether there are any cursor-sensor-functions text
+ properties in the buffer." 
+  (if (save-excursion
+	(save-restriction
+	  (widen)		
+	  (next-single-property-change
+	   (point-min)
+	   'cursor-sensor-functions)))
+      ;; If so, enable cursor-sensor-mode...
+      (cursor-sensor-mode 1)
+    ;; ...otherwise, disable it. 
+    (cursor-sensor-mode -1)))
+
 ;;;; Commands
+
+;;;###autoload
+(define-minor-mode org-clones-mode
+  "Org heading transclusion minor mode."
+  nil
+  " ORG-CLONES"
+  nil
+  (if org-clones-mode
+      (progn
+	(org-clones--initialize-transient-overlay)
+	(org-clones--reset-all-clone-effects-in-buffer)
+	(org-clones--initialize-overlays-in-buffer)
+	(cursor-sensor-mode 1))
+    (org-clones--remove-all-clone-effects-in-buffer)
+    (org-clones--cursor-sensor-mode-check)))
 
 (defun org-clones-unclone-this-clone ()
   "Remove the org-clones property from this node, and remove this
@@ -874,7 +922,6 @@ node's id from any nodes which contain it."
     (org-set-property "ORG-CLONES" "nil")
     (message "This node is no longer synced with other clones.")))
 
-;;;###autoload
 (defun org-clones-store-marker ()
   "Store a marker to create a clone."
   (interactive)
@@ -883,7 +930,6 @@ node's id from any nodes which contain it."
 	   (org-no-properties 
 	    (org-clones--get-headline-string))))
 
-;;;###autoload
 (defun org-clones-create-clone-from-marker ()
   "Create a clone from the previously stored marker."
   (interactive)
@@ -905,7 +951,6 @@ This forces the user to save the buffer, and makes sure
       (org-id-update-id-locations (list (buffer-file-name)) 'silent)
     (error "You must save this file before creating a clone")))
 
-;;;###autoload
 (defun org-clones-create-clone (&optional source-marker)
   "Insert a new headline, prompt the user for the source node,
 add clone properties to the source, add clone properties to the clone
@@ -962,54 +1007,6 @@ SOURCE-POINT is a marker for the location of the source node"
     (org-clones--replace-headline source-headline)
     (org-clones--replace-body source-body)
     (org-clones--put-clone-effects)))
-
-(defun org-clones--cursor-sensor-mode-check ()
-  "Turn `cursor-sensor-mode' on or off depending on 
-whether there are any cursor-sensor-functions text
- properties in the buffer." 
-  (if (save-excursion
-	(save-restriction
-	  (widen)		
-	  (next-single-property-change
-	   (point-min)
-	   'cursor-sensor-functions)))
-      ;; If so, enable cursor-sensor-mode...
-      (cursor-sensor-mode 1)
-    ;; ...otherwise, disable it. 
-    (cursor-sensor-mode -1)))
-
-;;;; Initialization 
-
-(defun org-clones--initialize-transient-overlay ()
-  "Initialize `org-clones--transient-overlay'
-used to highlight the clone at point. This overlay is reused
-each time the point is in the headline or body of a cloned node."
-  (setq org-clones--transient-overlay
-	(make-overlay 1 2 nil nil t))
-  (org-clones--put-overlay-props
-   org-clones--transient-overlay
-   org-clones--transient-overlay-properties)
-  (delete-overlay org-clones--transient-overlay))
-
-(defun org-clones--initialize-overlays-in-buffer ()
-  "Put overlays on all clones in current buffer."
-  (org-clones--iterate-over-all-clones-in-buffer 
-   (org-clones--put-headline-overlay)))
-
-;;;###autoload
-(define-minor-mode org-clones-mode
-  "Org heading transclusion minor mode."
-  nil
-  " ORG-CLONES"
-  nil
-  (if org-clones-mode
-      (progn
-	(org-clones--initialize-transient-overlay)
-	(org-clones--reset-all-clone-effects-in-buffer)
-	(org-clones--initialize-overlays-in-buffer)
-	(cursor-sensor-mode 1))
-    (org-clones--remove-all-clone-effects-in-buffer)
-    (org-clones--cursor-sensor-mode-check)))
 
 ;;;; Footer
 

@@ -34,9 +34,9 @@ I use the following teminology in the package:
 
 * Basics
 1. Only the headline and body of a node are cloned.
-2. Tags, TODO states, planning lines, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
-3. Child nodes are not cloned. Only the node itself is cloned. If you want the children to be cloned, you must clone them separately. 
-4. Clones can be reordered, promoted, demoted, and appear anywhere in an org outline. 
+2. Tags, TODO states, priorities, planning lines, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
+3. Children of cloens are not cloned. Only the node itself is cloned. If you want the children to be cloned, you must clone them separately. 
+4. Clones can be reordered, promoted, demoted, and appear anywhere in an org outline or in a different org file (assuming org-id can find it). 
 5. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
 6. To complete an edit, type =C-c C-c= again. To discard the edit, type =C-c C-k=.
 7. After the edit is completed, all clones will be updated automatically.
@@ -73,13 +73,13 @@ Insert screenshot here.
 
 | Variable                               | Behavior                                                                                                      | Default value            |
 |----------------------------------------+---------------------------------------------------------------------------------------------------------------+--------------------------|
-| =org-clones-commit-edit-shortcut=        | Shortcut to commit an edit to a clone and sync all clones                                                     | "C-c C-c"                  |
-| =org-clones-abort-edit-shortcut=         | Shortcut to abort an edit and return the clone to its previos state                                           | "C-c C-k"                  |
-| =org-clones-start-edit-shortcut=         | Shortcut to start editing a clone, when the cursor is in a cloned region                                      | "C-c C-c"                  |
-| =org-clones-jump-to-next-clone-shortcut= | Shortcut to cycle to the next clone after running =(org-clones-cycle-through-clones)=                           | "n"                        |
+| =org-clones-commit-edit-shortcut=        | Shortcut to commit an edit to a clone and sync all clones                                                     | "C-c C-c"                |
+| =org-clones-abort-edit-shortcut=         | Shortcut to abort an edit and return the clone to its previos state                                           | "C-c C-k"                |
+| =org-clones-start-edit-shortcut=         | Shortcut to start editing a clone, when the cursor is in a cloned region                                      | "C-c C-c"                |
+| =org-clones-jump-to-next-clone-shortcut= | Shortcut to cycle to the next clone after running =(org-clones-cycle-through-clones)=                           | "n"                      |
 | =org-clones-clone-prefix-icon=           | Icon which precedes the headline of any cloned node                                                           | "◈ "                     |
-| =org-clones-empty-body-string=           | You're not allowed to have a blank body in a clone. If you clone a node without a body, use this place holder | "[empty clone body]"      |
-| =org-clones-empty-headling-string=       | I don't know why anyone woudl clone a node without a headline, but in case you try, use this place holder     | "[empty clone headline]"  |
+| =org-clones-empty-body-string=           | You're not allowed to have a blank body in a clone. If you clone a node without a body, use this place holder | "[empty clone body]"     |
+| =org-clones-empty-headling-string=       | I don't know why anyone woudl clone a node without a headline, but in case you try, use this place holder     | "[empty clone headline]" |
 | =org-clones-prompt-before-syncing=       | Do you want an extra warning before syncing clones?                                                           | nil                      |
 | =org-clones-use-popup-prompt=            | If you do want an extra warning, do you want it in the minibuffer (default) or a pop up window?               | nil                      |
 ** Commands
