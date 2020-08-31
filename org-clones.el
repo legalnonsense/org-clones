@@ -211,7 +211,7 @@ through clones.")
   `(face org-clones-current-clone
 	 keymap ,org-clones--transient-clone-overlay-map
 	 priority 1000
-	 evaporate nil)
+	 evaporate t)
   "Properties to be added to the transient overlay.")
 
 (defvar org-clones--clone-headline-overlay-props
@@ -219,7 +219,7 @@ through clones.")
 		  evaporate t)
   "Overlays placed on each clone, regardless of whether the 
 cursor is on the cloned node.  Must be a plist of overlay properties.
-By default, the only thing this displays is `org-clones-clone-prefix-icon'.")
+By default, this only displays `org-clones-clone-prefix-icon'.")
 
 (defvar org-clones--edit-mode-header-line
   '(:eval
@@ -286,11 +286,11 @@ Move the cursor to that entry in that buffer, execute BODY,
 move back."
   (declare (indent defun))
   `(when-let ((marker (org-id-find ,id 'marker)))
-     (save-excursion 
-       (with-current-buffer (marker-buffer marker)
-	 (org-with-wide-buffer
-	  (goto-char marker)
-	  ,@body)))))
+     (with-current-buffer (marker-buffer marker)
+       (org-show-all)
+       ;;(sleep-for 1)
+       (goto-char marker)
+       ,@body)))
 
 ;; (defmacro org-clones--with-unfolded-node (&rest body)
 ;;   "If the node at point is folded, unfold it, execute BODY, 

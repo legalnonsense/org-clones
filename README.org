@@ -70,7 +70,6 @@ Insert screenshot here.
 | org-clones-current-clone | Applied to the headline or body of a clone, depending on whether the point is within the headline or body |
 | org-clones-clone         | Applied to the headline and body of every clone, regardless of whether the point is on the clone          |
 ** Variables
-
 | Variable                               | Behavior                                                                                                      | Default value            |
 |----------------------------------------+---------------------------------------------------------------------------------------------------------------+--------------------------|
 | =org-clones-commit-edit-shortcut=        | Shortcut to commit an edit to a clone and sync all clones                                                     | "C-c C-c"                |
@@ -104,9 +103,10 @@ Insert screenshot here.
 - [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
 - [ ] make an animated gif for example section
 - [ ] pick a less offensive face for the current clone
+- [ ] pick bindings for org-clones-map 
 * Known Bugs
-- [ ] Error when putting the text properties on a body when the the last point of the body is the last point of the buffer
-- [ ] Clone overlay icon disappears when killing and yanking a clone to a new location [solve by getting rid of `evaporate overlay property]
+- [X] Error when putting the text properties on a body when the the last point of the body is the last point of the buffer. [Solved by converting the =let= in =org-clones--text-watcher= to a =when-let=.
+- [ ] Clone overlay icon disappears when killing and yanking a clone to a new location. [Can’t figure out how to solve this one simply. Perhaps ignore it.]
 - [ ] if a clone is folded when synced, the new body will not be hidden properly until the outline visibility is cycled
 
 * Other transclusion efforts
