@@ -292,6 +292,15 @@ move back."
 	  (goto-char marker)
 	  ,@body)))))
 
+;; (defmacro org-clones--with-unfolded-node (&rest body)
+;;   "If the node at point is folded, unfold it, execute BODY, 
+;; and refold it."
+;;   `(let ((foldedp (invisible-p (org-clones--get-body-start))))
+;;      (when foldedp (org-cycle-internal-local))
+;;      ,@body
+;;      (org-back-to-heading)
+;;      (when foldedp (org-cycle-internal-local))))
+
 ;;;; Headline functions
 
 (defun org-clones--goto-headline-start ()
@@ -665,7 +674,7 @@ node."
     (org-clones--remove-clone-effects)
     (org-clones--put-clone-effects)))
 
-;;;; Clean up / Emergency functions
+;;;; Developement functions
 
 (defun org-clones--remove-all-cursor-sensors-in-buffer ()
   "Remove all cursor sensor text properties in the buffer."
@@ -689,6 +698,21 @@ node."
   "Remove all clone effets on all clones in buffer."
   (org-clones--iterate-over-all-clones-in-buffer
    (org-clones--remove-clone-effects)))
+
+(defun org-clones--highlight-cursor-sensor-props ()
+  "Highlight any points in the buffer with a non-nil cursor-sensor-functions
+text property."
+  (save-excursion 
+    (goto-char (point-min))
+    (cl-loop for points being the intervals of (current-buffer)
+	     property 'cursor-sensor-functions
+	     do (when (get-text-property (car points)
+					 'cursor-sensor-functions)
+		  (ov 
+		   (car points)
+		   (cdr points)
+		   'font-lock-face
+		   '(:background "yellow" :foreground "black"))))))
 
 ;;;; Cursor-sensor-functions
 
@@ -741,19 +765,19 @@ and remove the read-only text property. See `cursor-sensor-mode' for
 details on the arguments."
   (pcase entered-or-left
     (`entered
-     (let* ((points (org-clones--get-range-of-field-at-point))
-	    (beg (car points))
-	    (end (cdr points)))
+     (when-let* ((points (org-clones--get-range-of-field-at-point))
+		 (beg (car points))
+		 (end (cdr points)))
        (put-text-property beg end 'read-only t)
        (move-overlay org-clones--transient-overlay beg end)
        (message "Entered cloned node. Type '%s' to edit."
 		org-clones-start-edit-shortcut)))
     (`left
-     (let* ((points
-	     (save-excursion (goto-char last-pos)
-			     (org-clones--get-range-of-field-at-point)))
-	    (beg (car points))
-	    (end (cdr points)))
+     (when-let* ((points
+		  (save-excursion (goto-char last-pos)
+				  (org-clones--get-range-of-field-at-point)))
+		 (beg (car points))
+		 (end (cdr points)))
        (let ((inhibit-read-only t))
 	 (put-text-property beg end 'read-only nil)
 	 (delete-overlay org-clones--transient-overlay))))))
@@ -804,6 +828,7 @@ to its previous state, and turn off the minor mode."
   org-clones--edit-mode-map
   (if org-clones-edit-mode
       (progn
+	(setq cursor-sensor-inhibit nil)
 	(setq org-clones--previous-header-line header-line-format)
 	(setq header-line-format org-clones--edit-mode-header-line)
 	(setq org-clones--restore-state

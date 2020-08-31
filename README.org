@@ -1,4 +1,4 @@
-This package is not ready yet. Privacy please. 
+This package is not ready yet. Privacy please, unless you want to help track down a few persistent bugs. 
 
 Clone Orgmode headings so they appear in multiple locations, and sync edits between clones. 
 
