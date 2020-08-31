@@ -565,6 +565,8 @@ regardless of the value of `org-clones-prompt-before-syncing'."
        (org-clones--replace-headline headline)
        (org-clones--replace-body body)
        (org-clones--put-clone-effects))))
+  (when org-clones-edit-mode
+    (org-clones-edit-mode -1))
   (message "Clones synced."))
 
 ;;; Overlays

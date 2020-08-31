@@ -48,10 +48,10 @@ There are no outside dependencies.
 * Usage
 ** Clone creation
 Put the cursor on the node you want to clone. There are two methods of creating a clone:
-1. Run =org-clones-create-clone=, which will create a clone of that node after the current node. You can move the new node to wherever you like through killing and yanking, refiling, or whatever. 
+1. Run =org-clones-create-clone=, which will prompt the user to select a master node with =(org-goto)= and create a new heading at point.
 2. Run =org-clones-store-marker=, then place the point at a new location (which can be a different org file) and run =org-clones-create-clone-from-marker=.
 ** Display 
-1. Clones are marked by placing an icon in front of the clone’s headline. This icon can be customized by changing =org-clones-clone-prefix-icon=
+Clones are marked by placing an icon in front of the clone’s headline. This icon can be customized by changing =org-clones-clone-prefix-icon=
 ** Viewing clones
 To cycle through clones of the current node, run =org-clones-cycle-through-clones=. Then, press =n= to jump from one clone to another. Exit with =C-g= or any other key. 
 ** Uncloning a clone
