@@ -71,13 +71,13 @@ Insert screenshot here.
 
 | Variable                               | Behavior                                                                                                      | Default value            |
 |----------------------------------------+---------------------------------------------------------------------------------------------------------------+--------------------------|
-| =org-clones-commit-edit-shortcut=        | Shortcut to commit an edit to a clone and sync all clones                                                     | ="C-c C-c"=                |
-| =org-clones-abort-edit-shortcut=         | Shortcut to abort an edit and return the clone to its previos state                                           | ="C-c C-k"=                |
-| =org-clones-start-edit-shortcut=         | Shortcut to start editing a clone, when the cursor is in a cloned region                                      | ="C-c C-c"=                |
-| =org-clones-jump-to-next-clone-shortcut= | Shortcut to cycle to the next clone after running =(org-clones-cycle-through-clones)=                           | ="n"=                      |
-| =org-clones-clone-prefix-icon=           | Icon which precedes the headline of any cloned node                                                           | ="◈ "=                     |
-| =org-clones-empty-body-string=           | You're not allowed to have a blank body in a clone. If you clone a node without a body, use this place holder | ="[empty clone body]"=     |
-| =org-clones-empty-headling-string=       | I don't know why anyone woudl clone a node without a headline, but in case you try, use this place holder     | ="[empty clone headline]"= |
+| =org-clones-commit-edit-shortcut=        | Shortcut to commit an edit to a clone and sync all clones                                                     | "C-c C-c"                  |
+| =org-clones-abort-edit-shortcut=         | Shortcut to abort an edit and return the clone to its previos state                                           | "C-c C-k"                  |
+| =org-clones-start-edit-shortcut=         | Shortcut to start editing a clone, when the cursor is in a cloned region                                      | "C-c C-c"                  |
+| =org-clones-jump-to-next-clone-shortcut= | Shortcut to cycle to the next clone after running =(org-clones-cycle-through-clones)=                           | "n"                        |
+| =org-clones-clone-prefix-icon=           | Icon which precedes the headline of any cloned node                                                           | "◈ "                     |
+| =org-clones-empty-body-string=           | You're not allowed to have a blank body in a clone. If you clone a node without a body, use this place holder | "[empty clone body]"      |
+| =org-clones-empty-headling-string=       | I don't know why anyone woudl clone a node without a headline, but in case you try, use this place holder     | "[empty clone headline]"  |
 | =org-clones-prompt-before-syncing=       | Do you want an extra warning before syncing clones?                                                           | nil                      |
 | =org-clones-use-popup-prompt=            | If you do want an extra warning, do you want it in the minibuffer (default) or a pop up window?               | nil                      |
 
