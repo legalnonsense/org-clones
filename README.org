@@ -80,7 +80,13 @@ Insert screenshot here.
 | =org-clones-empty-headling-string=       | I don't know why anyone woudl clone a node without a headline, but in case you try, use this place holder     | "[empty clone headline]"  |
 | =org-clones-prompt-before-syncing=       | Do you want an extra warning before syncing clones?                                                           | nil                      |
 | =org-clones-use-popup-prompt=            | If you do want an extra warning, do you want it in the minibuffer (default) or a pop up window?               | nil                      |
-
+** Commands
+=Org-clones= provides the following interactive commands:
+| Command                             | Effect                                                                                  | Binding |
+|-------------------------------------+-----------------------------------------------------------------------------------------+---------|
+| =org-clones-create-clone=             | Create a clone of the node at point, directly below the current node.                   | None    |
+| =org-clones-store-marker=             | Store the current mode to create a clone in a different place                           | None    |
+| =org-clones-create-clone-from-marker= | After storing a node with =org-clones-store-marker=, create a clone of that node at point | None    |
 
 * How it works
 - Clones are tracked via the Orgmode property =:ORG-CLONES:= which contains a list of IDs which correspond to other cloned nodes. 
