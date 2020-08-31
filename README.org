@@ -21,7 +21,7 @@ Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]
 
 [insert animated gif]
 
-My use case is that I maintain one org file with ongoing research. This file is full of well-written and researched academic work, half-thoughts, notes, links, etc. Sometimes I need to use that research in a paper I am writing. When I do so, I inevitably edit and expand (or contract) the work I have already done. I want this new work—even though it is being written in a different file—to be synced back to my master research file. Before now, there did not appear to be a good way to do this simple thing.[fn:1] 
+My use case is that I maintain one org file with ongoing research. This file is full of well-written and researched academic work, half-thoughts, notes, links, etc. Sometimes I need to use that research in a paper I am writing. When I do so, I inevitably edit and expand (or contract) the work I have already done. I want this new work—even though it is being written in a different file—to be synced back to my master research file. Before now, there did not appear to be a good and simply way to do this. (I do not use =org-roam=, =org-brain=, or any other package. My brain is simple. I like outlines and only outlines. For me, anything beyond a simply outline results in diministed productivity. See below for links to other transclusion solutions.)
 
 * Terminology
 I use the following teminology in the package:
@@ -113,7 +113,3 @@ https://github.com/alphapapa/transclusion-in-emacs
 https://github.com/justintaft/emacs-transclusion
 
 https://github.com/gregdetre/emacs-freex
-
-* Footnotes
-
-[fn:1] I do not use =org-roam=, =org-brain=, or any other package. My brain is simple. I like outlines and only outlines. Anything beyond that results in diministed productivity. 
