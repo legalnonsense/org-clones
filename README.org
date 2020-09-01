@@ -90,7 +90,7 @@ If you do not want a clone to be synced, run =org-clones-unclone-this-clone=. Th
 1. =Org-clones= does not (currently) check for conflicts before syncing clones. Sync at your own risk. 
 2. =Org-clones= relies on =cursor-sensor-mode=. I have not profiled to see what type of slowdown one might experience in a large file due to =cursor-sensor-mode=. My files are not large enough for this to be a concern.
 3. =Org-clones= currently relies on =org-id=. =Org-id= sometimes has problems finding the location of an id, especially in a file that has just been created. Before you blame =org-clones= for a clone not syncing, make sure the file you are using appears in =org-id-locations=. Make use of =org-id-update-id-locations= if you must. You can test whether =org-id= is working as it should by manually trying =(org-id-goto "INSERT ID HERE")=. If that does not work, =org-clones= will not work. I find that saving the file and creating a few ids with =(org-id-get-create)= in some dummy headers, and re-saving the file, eventually solves the problem. (I have used =org-id= for years before noticing this issue and only discovered it when testing this package. Perhaps you will not encouter it.)
-4. If =org-clones= cannot find a clone, it does not remove the clone from the clone list automatically (due to the issues with =org-id=, supra).
+4. If =org-clones= cannot find a clone, it does not remove the clone from the clone list automatically (due to the issues with =org-id=, supra, or other issues involving multiple files/computers).
 * Custom variables, faces, and commands
 Most of this is laid out above, but just in case:
 ** Faces
