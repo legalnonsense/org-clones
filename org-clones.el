@@ -567,6 +567,7 @@ regardless of the value of `org-clones-prompt-before-syncing'."
        (org-clones--put-clone-effects))))
   (when org-clones-edit-mode
     (org-clones-edit-mode -1))
+  (org-clones--put-transient-overlay)
   (message "Clones synced."))
 
 ;;; Overlays
@@ -767,13 +768,9 @@ and remove the read-only text property. See `cursor-sensor-mode' for
 details on the arguments."
   (pcase entered-or-left
     (`entered
-     (when-let* ((points (org-clones--get-range-of-field-at-point))
-		 (beg (car points))
-		 (end (cdr points)))
-       (put-text-property beg end 'read-only t)
-       (move-overlay org-clones--transient-overlay beg end)
-       (message "Entered cloned node. Type '%s' to edit."
-		org-clones-start-edit-shortcut)))
+     (org-clones--put-transient-overlay)
+     (message "Entered cloned node. Type '%s' to edit."
+	      org-clones-start-edit-shortcut))
     (`left
      (when-let* ((points
 		  (save-excursion (goto-char last-pos)
@@ -883,6 +880,15 @@ of the node at point by pressing `org-clones-jump-to-next-clone-shortcut'."
 	      (append org-clones--clone-cycle-list
 		      (list last-pop)))))))
 
+(defun org-clones--put-transient-overlay ()
+  "Put the `org-clones--transient-overlay' in the cursor field
+at point."
+  (when-let* ((points (org-clones--get-range-of-field-at-point))
+	      (beg (car points))
+	      (end (cdr points)))
+    (put-text-property beg end 'read-only t)
+    (move-overlay org-clones--transient-overlay beg end)))
+
 ;;;; Initialization 
 
 (defun org-clones--initialize-transient-overlay ()
@@ -933,18 +939,30 @@ whether there are any cursor-sensor-functions text
     (org-clones--remove-all-clone-effects-in-buffer)
     (org-clones--cursor-sensor-mode-check)))
 
+(defun org-clones-delete-this-clone ()
+  "Delete the clone at point and remove references to it from
+other cloned nodes."
+  (interactive)
+  (org-back-to-heading)
+  (org-clones-unclone-this-clone)
+  (let* ((element-plist (cadr (org-element-at-point)))
+	 (beg (plist-get element-plist :begin))
+	 (end (plist-get element-plist :end)))
+    (delete-region beg end)))
+
 (defun org-clones-unclone-this-clone ()
   "Remove the org-clones property from this node, and remove this
 node's id from any nodes which contain it."
   (interactive)
   (let ((this-id (org-id-get))
 	(clone-ids (org-clones--get-clone-ids)))
-    (cl-loop for clone-id in clone-ids
-	     do (org-clones--with-point-at-id clone-id
-		  (org-entry-remove-from-multivalued-property
-		   (point) "ORG-CLONES" this-id)
-		  (unless (org-clones--get-clone-ids)
-		    (org-clones--remove-clone-effects))))
+    (save-excursion 
+      (cl-loop for clone-id in clone-ids
+	       do (org-clones--with-point-at-id clone-id
+		    (org-entry-remove-from-multivalued-property
+		     (point) "ORG-CLONES" this-id)
+		    (unless (org-clones--get-clone-ids)
+		      (org-clones--remove-clone-effects)))))
     (org-clones--remove-clone-effects)
     (org-set-property "ORG-CLONES" "nil")
     (message "This node is no longer synced with other clones.")))

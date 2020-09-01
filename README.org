@@ -108,6 +108,7 @@ Insert screenshot here.
 - [X] Error when putting the text properties on a body when the the last point of the body is the last point of the buffer. [Solved by converting the =let= in =org-clones--text-watcher= to a =when-let=.
 - [ ] Clone overlay icon disappears when killing and yanking a clone to a new location. [Can’t figure out how to solve this one simply. Perhaps ignore it.]
 - [X] if a clone is folded when synced, the new body will not be hidden properly until the outline visibility is cycled
+- [ ] After an edit, the overlay is not replaced
 
 * Other transclusion efforts
 Here are other Emacs transclusion efforts (or discussions of such efforts):
@@ -117,3 +118,6 @@ https://github.com/alphapapa/transclusion-in-emacs
 https://github.com/justintaft/emacs-transclusion
 
 https://github.com/gregdetre/emacs-freex
+
+* Changelog
+- [2020-09-01 Tue] Added =org-clones-delete-this-clone=
