@@ -252,9 +252,6 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
   to restore if the edit is abandoned.")
 (make-variable-buffer-local 'org-clones--restore-state)
 
-(defvar org-clones-edit-mode nil
-  "Silence the byte-compiler.")
-
 ;;;; Macros
 
 (defmacro org-clones--iterate-over-clones (&rest body)
