@@ -5,6 +5,8 @@ Clone Orgmode headings so they appear in multiple locations, and sync edits betw
 * Why clones?
 Anyone who has made an outline has run into the problem that an entry belongs in two places. For example:
 
+[[~/.emacs.d/lisp/org-clones/IMAGES/output-2020-09-01-15:15:40.gif]]
+
 #+begin_src org 
 * Animals
 ** Dogs
@@ -19,32 +21,58 @@ You could handle this with links, so that you have a master Dog header and subse
 
 Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]], meaning that text from one file appears in another place, with edits synced back to the original source. It is a prominent featuree of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
 
-[insert animated gif]
-
 My use case is that I maintain one org file with ongoing research. This file is full of well-written and researched academic work, half-thoughts, notes, links, etc. Sometimes I need to use that research in a paper I am writing. When I do so, I inevitably edit and expand (or contract) the work I have already done. I want this new work—even though it is being written in a different file—to be synced back to my master research file. Before now, there did not appear to be a good and simply way to do this. 
 
-I do not use =org-roam=, =org-brain=, or any other package involving the Zettlekasten, or other, note taking method. My brain is simple. I like outlines and only outlines. For me, anything beyond a simple outline results in diministed productivity. See below for links to other transclusion solutions.
+I do not use [[https://www.orgroam.com/][org-roam]] or any other package involving the Zettlekasten, or other, note taking method. My brain is simple. I like outlines and only outlines. Anything beyond a simple outline results in diministed productivity.
+
+See below for links to other transclusion solutions.
 
 * Terminology
 I use the following teminology in the package:
 
-- Node :: an entry in an org outline. 
+- Node :: an entry in an org outline
 - Headline :: the headline text of the node, but does not include the headline's todo state or tags
-- Body :: everything after the headline, planning line, and property drawers until the next node.
+- Body :: everything after the headline, planning line, and property drawers until the next node
 
 * Basics
 1. Only the headline and body of a node are cloned.
 2. Tags, TODO states, priorities, planning lines, property drawers, logbooks, and closing note logs, are not cloned and remain independent.
-3. Children of cloens are not cloned. Only the node itself is cloned. If you want the children to be cloned, you must clone them separately. 
+3. Children of clones are not cloned. Only the node itself is cloned. If you want the children to be cloned, you must clone them separately. 
 4. Clones can be reordered, promoted, demoted, and appear anywhere in an org outline or in a different org file (assuming org-id can find it). 
-5. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
-6. To complete an edit, type =C-c C-c= again. To discard the edit, type =C-c C-k=.
-7. After the edit is completed, all clones will be updated automatically.
 
 * Installation
-Place =org-clones.el= in your load path and =(require 'org-clones)=. Open an orgmode file an run =(org-clones-mode)=. 
+There are no outside dependencies. Place =org-clones.el= in your load path and =(require 'org-clones)=. You can then activate =(org-clones-mode)=. If you create a clone without turning on the mode first, =org-clones-mode= will be enabled automatically. 
 
-There are no outside dependencies.
+In the alternative, use this use-package declaration which includes all customizable variables, commands, faces, and my own keymap, which you can easily customize:
+#+begin_src emacs-lisp :results silent
+  (use-package org-clones
+    :hook
+    ;; Note: `org-clones-mode' will only activate
+    ;; `cursor-sensor-mode' if there are cursor-sensor-properties
+    ;; in the buffer.  Therefore, you can safely add `org-clones-mode'
+    ;; to `orgmode-hook' even if you don't plan to use it in every file. 
+    (orgmode . org-clones-mode)
+    :custom
+    (org-clones-commit-edit-shortcut "C-c C-c")
+    (org-clones-abort-edit-shortcut  "C-c C-k")
+    (org-clones-start-edit-shortcut  "C-c C-c")
+    (org-clones-jump-to-next-clone-shortcut "n")
+    (org-clones-clone-prefix-icon "◈ ")
+    (org-clones-empty-body-string "[empty clone body]")
+    (org-clones-empty-headling-string "[empty clone headline]")
+    (org-clones-prompt-before-syncing nil)
+    (org-clones-use-popup-prompt nil)
+    :custom-face
+    (org-clones-current-clone ((t (:background "orchid" :foreground "black"))))
+    (org-clones-clone ((t (:background "black"))))
+    :bind
+    (("C-; C-c C-m" . org-clones-store-marker)
+     ("C-; C-c C-c" . org-clones-create-clone-dwim)
+     ("C-; C-c C-d" . org-clones-delete-this-clone)
+     ("C-; C-c C-j" . org-clones-jump-to-clones)
+     ("C-; C-c C-u" . org-clones-unclone-this-clone)))
+#+end_src
+
 * Usage
 ** Clone creation
 Put the cursor on the node you want to clone. There are two methods of creating a clone:
@@ -53,23 +81,25 @@ Put the cursor on the node you want to clone. There are two methods of creating 
 ** Display 
 Clones are marked by placing an icon in front of the clone’s headline. This icon can be customized by changing =org-clones-clone-prefix-icon=
 ** Viewing clones
-To cycle through clones of the current node, run =org-clones-cycle-through-clones=. Then, press =n= to jump from one clone to another. Exit with =C-g= or any other key. 
+To cycle through clones of the current node, run =org-clones-jump-to-clones=. Then, press =n= to jump from one clone to another. Exit with =C-g= or any other key. 
+** Editing clones
+1. When the cursor enters a cloned headline or body, the text becomes read only. To edit the text, type =C-c C-c=.
+2. To complete an edit, type =C-c C-c= again. To discard the edit, type =C-c C-k=.
+3. After the edit is completed, all clones will be updated automatically. (If you want an additional prompt before syncing, set =org-clones-prompt-before-sync= to non-nil.)
 ** Uncloning a clone
-If you do not want a clone to be synced, run =org-clones-unsync-this-clone=. The node's ID will removed from all other clones, and the node's =:ORG-CLONES:= property will be set to nil. The node’s state will not otherwise be affected. 
+If you do not want a clone to be synced, run =org-clones-unclone-this-clone=. The node's ID will removed from all other clones, and the node's =:ORG-CLONES:= property will be set to nil. The node will not otherwise be affected. 
 ** Caveats
 1. =Org-clones= does not (currently) check for conflicts before syncing clones. Sync at your own risk. 
 2. =Org-clones= relies on =cursor-sensor-mode=. I have not profiled to see what type of slowdown one might experience in a large file due to =cursor-sensor-mode=. My files are not large enough for this to be a concern.
 3. =Org-clones= currently relies on =org-id=. =Org-id= sometimes has problems finding the location of an id, especially in a file that has just been created. Before you blame =org-clones= for a clone not syncing, make sure the file you are using appears in =org-id-locations=. Make use of =org-id-update-id-locations= if you must. You can test whether =org-id= is working as it should by manually trying =(org-id-goto "INSERT ID HERE")=. If that does not work, =org-clones= will not work. I find that saving the file and creating a few ids with =(org-id-get-create)= in some dummy headers, and re-saving the file, eventually solves the problem. (I have used =org-id= for years before noticing this issue and only discovered it when testing this package. Perhaps you will not encouter it.)
-4. If =org-id= cannot find a clone, it does not remove the clone from the clone list automatically. 
-* Example
-Insert screenshot here.
-* Customization 
+4. If =org-clones= cannot find a clone, it does not remove the clone from the clone list automatically (due to the issues with =org-id=, supra).
+* Custom variables, faces, and commands
 ** Faces
 | Face                     | Usage                                                                                                     |
 |--------------------------+-----------------------------------------------------------------------------------------------------------|
 | org-clones-current-clone | Applied to the headline or body of a clone, depending on whether the point is within the headline or body |
 | org-clones-clone         | Applied to the headline and body of every clone, regardless of whether the point is on the clone          |
-** Variables
+** Custom Variables
 | Variable                               | Behavior                                                                                                      | Default value            |
 |----------------------------------------+---------------------------------------------------------------------------------------------------------------+--------------------------|
 | =org-clones-commit-edit-shortcut=        | Shortcut to commit an edit to a clone and sync all clones                                                     | "C-c C-c"                |
@@ -83,11 +113,12 @@ Insert screenshot here.
 | =org-clones-use-popup-prompt=            | If you do want an extra warning, do you want it in the minibuffer (default) or a pop up window?               | nil                      |
 ** Commands
 =Org-clones= provides the following interactive commands:
-| Command                             | Effect                                                                                  | Binding |
-|-------------------------------------+-----------------------------------------------------------------------------------------+---------|
-| =org-clones-create-clone=             | Create a clone of the node at point, directly below the current node.                   | None    |
-| =org-clones-store-marker=             | Store the current mode to create a clone in a different place                           | None    |
-| =org-clones-create-clone-from-marker= | After storing a node with =org-clones-store-marker=, create a clone of that node at point | None    |
+| Command                             | Effect                                                                                                 |
+|-------------------------------------+--------------------------------------------------------------------------------------------------------|
+| =org-clones-create-clone=             | Create a clone of the node at point, directly below the current node.                                  |
+| =org-clones-store-marker=             | Store the current mode to create a clone in a different place                                          |
+| =org-clones-create-clone-from-marker= | After storing a node with =org-clones-store-marker=, create a clone of that node at point                |
+| =org-clones-create-clone-dwim=        | Create a clone from the stored marker if one is stored; otherwise, prompt the user for the source node |
 
 * How it works
 - Clones are tracked via the Orgmode property =:ORG-CLONES:= which contains a list of IDs which correspond to other cloned nodes. 
@@ -97,18 +128,19 @@ Insert screenshot here.
 - The transient overlay has a keymap which uses =org-clones-start-edit-shortcut=, bound to =C-c C-c= by default. 
 - Once the edit mode is invoked, the read-only text property is removed, the header-line appears to remind the user they are editing a clone and showing the shortcuts to commit or abandon the edit. These shortcuts are set with =org-clones-start-edit-shortcut= (=C-c C-c= by default) and =org-clones-abort-edit-shortcut= (=C-c C-k= by default).  
 - When the user terminates the edit, the read-only text properties are replaced, the header-line is reset to its previous value, and the transient overlay is replaced. Other variables (recording the state of the node before the edit, etc.) are reset to nil). If the user has committed the edit, all other clones are synced automatically.
-- When the cursor exits a cloned field, the transient overlay is removed. 
+- When the cursor exits a cloned field without edits, the transient overlay is removed.
 * TODOs
 - [ ] write conflict check before syncing clones/when starting the mode
 - [ ] figure out why org-id sometimes fails to pick up ids entered into new files, submit a bug report and write a temporary workaround
 - [ ] make an animated gif for example section
-- [ ] pick a less offensive face for the current clone
-- [ ] pick bindings for org-clones-map 
+- [X] pick a less offensive face for the current clone
+- [X] pick bindings for org-clones-map 
+- [X] write sample use-package 
 * Known Bugs
 - [X] Error when putting the text properties on a body when the the last point of the body is the last point of the buffer. [Solved by converting the =let= in =org-clones--text-watcher= to a =when-let=.
 - [ ] Clone overlay icon disappears when killing and yanking a clone to a new location. [Can’t figure out how to solve this one simply. Perhaps ignore it.]
 - [X] if a clone is folded when synced, the new body will not be hidden properly until the outline visibility is cycled
-- [ ] After an edit, the overlay is not replaced
+- [X] After an edit, the overlay is not replaced
 
 * Other transclusion efforts
 Here are other Emacs transclusion efforts (or discussions of such efforts):
