@@ -14,11 +14,11 @@ Anyone who has made an outline has run into the problem that an entry belongs in
 #+end_src
 Oh no. The Dogs header belongs in two places. Now suppose that the Dogs header contains everything you know about dogs. 
 
-You could handle this with links, so that you have a master Dog header and subsequent headers simply link back to it. I do not like that solution. I want to clone the header so that it appears in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones automatically. 
+You could handle this with links, so that you have a source Dog header and subsequent headers simply link back to it. I do not like that solution. I want to clone the header so that it appears in different places in an outline, including in different files. When I edit one of these clones, I want the changes to sync to all the other clones automatically. 
 
 Clones are a type of [[https://en.wikipedia.org/wiki/Transclusion][transclusion]], meaning that text from one file appears in another place, with edits synced back to the original source. It is a prominent featuree of Leo Editor, /see/ https://leoeditor.com/tutorial-pim.html, which I wish I could use but it’s not in Emacs so it is dead to me.
 
-My use case is that I maintain one org file with ongoing research. This file is full of well-written and researched academic work, half-thoughts, notes, links, etc. Sometimes I need to use that research in a paper I am writing. When I do so, I inevitably edit and expand (or contract) the work I have already done. I want this new work—even though it is being written in a different file—to be synced back to my master research file. Before now, there did not appear to be a good and simply way to do this. 
+My use case is that I maintain one org file with ongoing research. This file is full of well-written and researched academic work, half-thoughts, notes, links, etc. Sometimes I need to use that research in a paper I am writing. When I do so, I inevitably edit and expand (or contract) the work I have already done. I want this new work—even though it is being written in a different file—to be synced back to my source research file. Before now, there did not appear to be a good and simply way to do this. 
 
 I do not use [[https://www.orgroam.com/][org-roam]] or any other package involving the Zettlekasten, or other, note taking method. My brain is simple. I like outlines and only outlines. Anything beyond a simple outline results in diministed productivity.
 
@@ -70,10 +70,9 @@ In the alternative, this use-package declaration includes all customizable varia
 
 * Usage
 ** Clone creation
-Put the cursor on the node you want to clone. There are two methods of creating a clone:
-1. Run =org-clones-create-clone=, which will prompt the user to select a master node with =(org-goto)= and create a new heading at point.
+1. Put the cursor at the place you want to create a heading, run =org-clones-create-clone=, which will prompt the user to select a source node with =(org-goto)= and create a new heading at point.
 2. Run =org-clones-store-marker=, then place the point at a new location (which can be a different org file) and run =org-clones-create-clone-from-marker=.
-3. =org-clones-create-clone-dwim= creates a clone from a stored marker if there is one, and otherwise prompts the user for the source.
+3. Run =org-clones-create-clone-dwim= creates a clone from a stored marker if there is one, and otherwise prompts the user for the source.
 ** Display 
 Clones are marked by placing an icon in front of the clone’s headline. This icon can be customized by changing =org-clones-clone-prefix-icon=. The headline and body of a cloned node receive the =org-clones-clone= face. 
 
