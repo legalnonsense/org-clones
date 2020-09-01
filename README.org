@@ -1,4 +1,5 @@
-Clone Orgmode headings so they appear in multiple locations, and sync edits between clones. 
+* Org-clones 
+Clone Orgmode headings so they appear in multiple locations, and sync edits between clones.
 
 [[file:IMAGES/output-2020-09-01-15:37:39.gif]]
 
