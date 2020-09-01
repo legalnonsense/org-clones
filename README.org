@@ -32,8 +32,8 @@ I use the following teminology in the package:
 
 * Basics
 1. Only the headline and body of a node are cloned.
-2. Tags, TODO states, priorities, planning lines, property drawers, logbooks, and closing note logs, are not cloned and remain independent. You can change these properties on an individual basis without affecting any clones.
-3. Anything in the body of a clone (e.g., text, source blocks, etc.) will be cloned. Only the items listed above aree ignored. 
+2. Tags, TODO states, priorities, planning lines, property drawers, logbooks, and closing note logs, are not cloned and remain independent. You can change these properties on an individual basis without affecting any clones. (See [[https://raw.githubusercontent.com/legalnonsense/org-clones/master/IMAGES/output-2020-09-01-15%3A15%3A40.gif][here]] for a demonstration in a "busy" file.)
+3. Anything in the body of a clone (e.g., text, source blocks, tabes, etc.) will be cloned. Only the items listed above aree ignored. 
 4. Child nodes of clones are not cloned. Only the node itself is cloned. If you want the children to be cloned, you must clone them separately. 
 5. Clones can be reordered, promoted, demoted, and appear anywhere in an org outline or in a different org file. All that matters is that =org-id= can find it.
 
