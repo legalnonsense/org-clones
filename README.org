@@ -5,7 +5,9 @@ Clone Orgmode headings so they appear in multiple locations, and sync edits betw
 * Why clones?
 Anyone who has made an outline has run into the problem that an entry belongs in two places. For example:
 
-[[~/.emacs.d/lisp/org-clones/IMAGES/output-2020-09-01-15:15:40.gif]]
+[[file:~/.emacs.d/lisp/org-clones/IMAGES/output-2020-09-01-15:15:40.gif]]
+
+
 
 #+begin_src org 
 * Animals
