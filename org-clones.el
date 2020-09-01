@@ -1,5 +1,6 @@
 ;;; org-clones.el --- Clone Orgmode headings  -*- lexical-binding: t; -*-
 
+
 ;; Copyright (C) 2020 Jeff Filipovits
 
 ;; Author: Jeff Filipovits <jrfilipovits@gmail.com>
@@ -78,6 +79,7 @@
 
 (require 'org)
 (require 'org-id)
+(require 'org-element)
 
 ;;;; Customization
 
@@ -250,6 +252,9 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
   to restore if the edit is abandoned.")
 (make-variable-buffer-local 'org-clones--restore-state)
 
+(defvar org-clones-edit-mode nil
+  "Silence the byte-compiler.")
+
 ;;;; Macros
 
 (defmacro org-clones--iterate-over-clones (&rest body)
@@ -258,7 +263,7 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
      (when-let ((clone-ids (org-clones--get-clone-ids)))
        (cl-loop for clone-id in clone-ids
 		do (org-clones--with-point-at-id clone-id
-		     ,@body)))))
+						 ,@body)))))
 
 (defmacro org-clones--iterate-over-all-clones-in-buffer (&rest body)
   "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, 
@@ -663,17 +668,6 @@ node."
 ;;        (point-max)
 ;;        '(cursor-sensor-functions nil)))))
 
-;; (defun org-clones--reset-all-clone-effects-in-buffer ()
-;;   "Reset all clone effets on all clones in buffer."
-;;   (org-clones--iterate-over-all-clones-in-buffer
-;;    (org-clones--remove-clone-effects)
-;;    (org-clones--put-clone-effects)))
-
-;; (defun org-clones--remove-all-clone-effects-in-buffer ()
-;;   "Remove all clone effets on all clones in buffer."
-;;   (org-clones--iterate-over-all-clones-in-buffer
-;;    (org-clones--remove-clone-effects)))
-
 ;; (defun org-clones--highlight-cursor-sensor-props ()
 ;;   "Highlight any points in the buffer with a non-nil cursor-sensor-functions
 ;; text property."
@@ -688,6 +682,19 @@ node."
 ;; 		   (cdr points)
 ;; 		   'font-lock-face
 ;; 		   '(:background "yellow" :foreground "black"))))))
+
+;;;; Buffer preparation functions
+
+(defun org-clones--reset-all-clone-effects-in-buffer ()
+  "Reset all clone effets on all clones in buffer."
+  (org-clones--iterate-over-all-clones-in-buffer
+   (org-clones--remove-clone-effects)
+   (org-clones--put-clone-effects)))
+
+(defun org-clones--remove-all-clone-effects-in-buffer ()
+  "Remove all clone effets on all clones in buffer."
+  (org-clones--iterate-over-all-clones-in-buffer
+   (org-clones--remove-clone-effects)))
 
 ;;;; Cursor-sensor-functions
 
@@ -980,10 +987,7 @@ add clone properties to the source, add clone properties to the clone
 and add the headline and body from the source to the clone.  
 SOURCE-POINT is a marker for the location of the source node"
   (interactive)
-  (unless org-clones-mode
-    (org-clones-mode 1))
-  (unless cursor-sensor-mode
-    (cursor-sensor-mode 1))
+  (org-clones-mode 1)
   (let (source-headline source-body source-id source-clone-list	clone-id)
     ;; At the new heading...
     (org-insert-heading-respect-content)
@@ -1019,12 +1023,12 @@ SOURCE-POINT is a marker for the location of the source node"
     (cl-loop for clone-id in source-clone-list
 	     do
 	     (org-clones--with-point-at-id clone-id
-	       (cl-loop for clone in source-clone-list
-			do
-			(unless (string= clone (org-id-get-create))
-			  (org-entry-add-to-multivalued-property (point)
-								 "ORG-CLONES"
-								 clone)))))
+					   (cl-loop for clone in source-clone-list
+						    do
+						    (unless (string= clone (org-id-get-create))
+						      (org-entry-add-to-multivalued-property (point)
+											     "ORG-CLONES"
+											     clone)))))
     ;; At the new clone...
     (org-entry-add-to-multivalued-property (point)
 					   "ORG-CLONES"
