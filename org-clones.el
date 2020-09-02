@@ -252,6 +252,9 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
   to restore if the edit is abandoned.")
 (make-variable-buffer-local 'org-clones--restore-state)
 
+(setq org-clones--progress-cookie-re "\\[[[:digit:]]*/[[:digit:]]*\\]\\|\\[[[:digit:]]*\\%\\]")
+;; "Regexp for org progress cookies, e.g., [2/3] or [55%].")
+
 ;;;; Macros
 
 (defmacro org-clones--iterate-over-clones (&rest body)
@@ -260,7 +263,7 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
      (when-let ((clone-ids (org-clones--get-clone-ids)))
        (cl-loop for clone-id in clone-ids
 		do (org-clones--with-point-at-id clone-id
-						 ,@body)))))
+		     ,@body)))))
 
 (defmacro org-clones--iterate-over-all-clones-in-buffer (&rest body)
   "Execute BODY at any clone which has a non-nil :ORG-CLONES: property, 
@@ -302,14 +305,57 @@ the leading stars."
   (save-excursion
     (org-clones--goto-headline-start)))
 
+
+;; Original
+;; (defun org-clones--goto-headline-end ()
+;;   "Goto the last point of the headline (i.e., before the
+;; tag line."
+;;   (org-back-to-heading t)
+;;   (if (re-search-forward
+;;        (concat ":" org-tag-re ":") (point-at-eol) t)
+;;       (goto-char (1- (match-beginning 0)))
+;;     (end-of-line))
+;;   (when (re-search-backward org-clones--not-whitespace-re)
+;;     (goto-char (match-end 0)))
+;;   (point))
+
+(defun org-clones--normalize-headline ()
+  "Move any progress tracking cookie to the end of the headline."
+  (save-excursion
+    (org-back-to-heading)
+    (let (match cookies)
+      (while (re-search-forward org-clones--progress-cookie-re
+				(point-at-eol)
+				'no-error)
+	(setq match (match-string 0))
+	;; Can't use this because the users might sync
+	;; before org applies these text properties.
+	;;
+	;; (when (or (eq (get-text-property 0 'face match)
+	;; 	      'org-checkbox-statistics-todo)
+	;; 	  (eq (get-text-property 0 'face match)
+	;; 	      'org-checkbox-statistics-done))
+	;; 
+	(replace-match "")
+	(when (looking-at " ")
+	  (delete-char 1))
+	(push match cookies))
+      (org-clones--goto-headline-end)
+      (cl-loop for cookie in cookies
+	       do (insert " " cookie)))))
+
 (defun org-clones--goto-headline-end ()
-  "Goto the last point of the headline (i.e., before the
-tag line."
+  "Goto the last point of the headline (i.e., before the progress cookie
+and tag line."
   (org-back-to-heading t)
-  (if (re-search-forward
-       (concat ":" org-tag-re ":") (point-at-eol) t)
-      (goto-char (1- (match-beginning 0)))
-    (end-of-line))
+  (cond
+   ((re-search-forward org-clones--progress-cookie-re (point-at-eol) t)
+    (goto-char (match-beginning 0))
+    (backward-char))
+   ((re-search-forward
+     (concat ":" org-tag-re ":") (point-at-eol) t)
+    (goto-char (1- (match-beginning 0))))
+   (t (end-of-line)))
   (when (re-search-backward org-clones--not-whitespace-re)
     (goto-char (match-end 0)))
   (point))
@@ -330,8 +376,11 @@ before the ellipsis."
 leading stars, TODO state, and tags."
   (save-excursion
     (org-back-to-heading)
-    (org-no-properties
-     (plist-get (cadr (org-element-at-point)) :raw-value))))
+    (string-trim
+     (replace-regexp-in-string
+      org-clones--progress-cookie-re "" 
+      (org-no-properties
+       (plist-get (cadr (org-element-at-point)) :raw-value))))))
 
 (defun org-clones--delete-headline ()
   "Delete the headline of the heading at point."
@@ -345,7 +394,7 @@ leading stars, TODO state, and tags."
 (defun org-clones--replace-headline (headline)
   "Replace the headline text at point with HEADLINE."
   (let ((inhibit-read-only t))
-    (save-excursion 
+    (save-excursion
       (org-clones--delete-headline)
       (org-clones--goto-headline-start)
       (insert headline)
@@ -379,7 +428,8 @@ the planning line, and any closing note."
   (org-end-of-meta-data t)
   (let ((section (org-clones--get-section-elements)))
     ;; This is a ridiculous way to check if there is a closing note!
-    (if (and (eq (caar section) 'plain-list)
+    (if (and section
+	     (eq (caar section) 'plain-list)
 	     (eq (car (caddar section)) 'item)
 	     (eq (caaddr (caddar section)) 'paragraph)
 	     ;; I don't think there is a variable to control
@@ -400,9 +450,14 @@ the planning line, and any closing note."
     (and (<= (point) end)
 	 (>= (point) start))))
 
-(defun org-clones--normalize-node-format ()
+(defun org-clones--normalize-body ()
   "Placeholder for normalizing the format of a node."
-  nil)
+  (save-excursion 
+    (org-end-of-meta-data t)
+    (when (looking-at org-clones--org-headline-re)
+      (backward-char)
+      (unless (looking-at "^[[:space:]]")
+	(insert "\norg-clones-empty-body-string\n")))))
 
 (defun org-clones--replace-body (body)
   "Replace the body of the current node with
@@ -416,7 +471,7 @@ BODY. If BODY is nil, then use `org-clones-empty-body-string'."
       (insert (or body
 		  org-clones-empty-body-string)
 	      "\n"))
-    (org-clones--normalize-node-format)))
+    (org-clones--normalize-body)))
 
 (defun org-clones--parse-body ()
   "Parse all elements from the start of the body to the next node.
@@ -517,6 +572,8 @@ regardless of the value of `org-clones-prompt-before-syncing'."
 	   org-clones-prompt-before-syncing)
       (org-clones--prompt-before-syncing)
     (org-clones--remove-clone-effects)
+    (org-clones--normalize-headline)
+    (org-clones--normalize-body)
     (let ((inhibit-read-only t)
 	  (headline (org-clones--get-headline-string))
 	  (body (if (string= "" (org-clones--get-body-string))
@@ -524,6 +581,7 @@ regardless of the value of `org-clones-prompt-before-syncing'."
 		  (org-clones--get-body-string))))
       ;; Replace the body in the current node to 
       ;; normalize whitespace
+      (org-clones--replace-headline headline)
       (org-clones--replace-body body)
       (org-clones--put-clone-effects)
       (org-clones--iterate-over-clones
@@ -628,7 +686,7 @@ node. 'Clone effects' means: cursor sensor properties,
 text properties, headline overlay, node overlay, and 
 automatically folding the property drawer."
   (let ((inhibit-read-only t))
-    (org-clones--normalize-node-format)
+    (org-clones--normalize-body)
     (org-clones--put-clone-cursor-sensor-props)
     (org-clones--put-headline-overlay)
     (org-clones--put-node-overlay)
@@ -653,32 +711,34 @@ node."
 
 ;;;; Developement functions
 
-;; (defun org-clones--remove-all-cursor-sensors-in-buffer ()
-;;   "Remove all cursor sensor text properties in the buffer."
-;;   (when (y-or-n-p
-;; 	 (concat
-;; 	  "This will remove all cursor-sensor-functions, even "
-;; 	  "those that are not associated with org-clones. Continue?"))
-;;     (let ((inhibit-read-only t))
-;;       (set-text-properties
-;;        (point-min)
-;;        (point-max)
-;;        '(cursor-sensor-functions nil)))))
+(defun org-clones--remove-all-cursor-sensors-in-buffer ()
+  "Remove all cursor sensor text properties in the buffer."
+  (when (y-or-n-p
+	 (concat
+	  "This will remove all cursor-sensor-functions, even "
+	  "those that are not associated with org-clones. Continue?"))
+    (let ((inhibit-read-only t))
+      (set-text-properties
+       (point-min)
+       (point-max)
+       '(cursor-sensor-functions nil)))))
 
-;; (defun org-clones--highlight-cursor-sensor-props ()
-;;   "Highlight any points in the buffer with a non-nil cursor-sensor-functions
-;; text property."
-;;   (save-excursion 
-;;     (goto-char (point-min))
-;;     (cl-loop for points being the intervals of (current-buffer)
-;; 	     property 'cursor-sensor-functions
-;; 	     do (when (get-text-property (car points)
-;; 					 'cursor-sensor-functions)
-;; 		  (ov 
-;; 		   (car points)
-;; 		   (cdr points)
-;; 		   'font-lock-face
-;; 		   '(:background "yellow" :foreground "black"))))))
+(defun org-clones--highlight-cursor-sensor-props ()
+  "Highlight any points in the buffer with a non-nil cursor-sensor-functions
+text property."
+  (ov-clear 'org-clones-testing 'any)
+  (save-excursion 
+    (goto-char (point-min))
+    (cl-loop for points being the intervals of (current-buffer)
+	     property 'cursor-sensor-functions
+	     do (when (get-text-property (car points)
+					 'cursor-sensor-functions)
+		  (ov 
+		   (car points)
+		   (cdr points)
+		   'font-lock-face
+		   '(:background "yellow" :foreground "black")
+		   'org-clones-testing t)))))
 
 ;;;; Buffer preparation functions
 
