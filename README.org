@@ -141,5 +141,5 @@ https://github.com/alphapapa/transclusion-in-emacs
 https://github.com/justintaft/emacs-transclusion
 
 https://github.com/gregdetre/emacs-freex
-
-
+* Change log
+- [2020-09-02 Wed] Fix progress cookies and unrelated issue concerning org-clones improperly placing the body of a parent node inside a child node when syncing clones
