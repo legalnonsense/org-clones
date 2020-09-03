@@ -261,6 +261,9 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 (defvar org-clones--headline-comment-re "\\* COMMENT "
   "Regexp for COMMENT prefix for org headlines.")
 
+(setq org-clones--priority-cookie-re "\\[#[A|B|C]\\]")
+;;      "Regexp for priority cookies in org headlines.")
+
 ;;;; Macros
 
 (defmacro org-clones--iterate-over-clones (&rest body)
@@ -308,8 +311,11 @@ move back."
   "Goto the first point of the headline, after the
 leading stars, TODO state, or COMMENT."
   (org-back-to-heading t)
-  ;;(re-search-forward org-clones--org-headline-re (point-at-eol))
-  (cond ((org-get-todo-state)
+  ;; This assumes the headline has the order:
+  ;; stars TODO/COMMENT PRIORITY HEADLINE
+  (cond ((re-search-forward org-clones--priority-cookie-re (point-at-eol) t)
+	 nil)
+	((org-get-todo-state)
 	 (re-search-forward (org-get-todo-state) (point-at-eol) t)
 	 (forward-char 1))
 	((re-search-forward org-clones--headline-comment-re
@@ -384,20 +390,14 @@ before the ellipsis."
        (<= (point) (org-clones--get-headline-end))
        (>= (point) (org-clones--get-headline-start))))
 
-;; (defun org-clones--get-headline-string ()
-;;   "Get the full text of a headline at point, excluding the
-;; leading stars, TODO state, and tags."
-;;   (save-excursion
-;;     (org-back-to-heading)
-;;     (string-trim
-;;      (replace-regexp-in-string
-;;       org-clones--progress-cookie-re "" 
-;;       (org-no-properties
-;;        (plist-get (cadr (org-element-at-point)) :raw-value))))))
-
 (defun org-clones--get-headline-string ()
-  "Get the full text of a headline at point, excluding the
-leading stars, TODO state, and tags."
+  "Get the full text of a headline at point, but excluding:
+- leading stars
+- TODO state
+- COMMENT prefix
+- org-babel inline results
+- tags
+- progress cookies."
   (buffer-substring-no-properties (org-clones--get-headline-start)
 				  (org-clones--get-headline-end)))
 
