@@ -397,6 +397,7 @@ before the ellipsis."
 - COMMENT prefix
 - org-babel inline results
 - tags
+- priority cookies
 - progress cookies."
   (buffer-substring-no-properties (org-clones--get-headline-start)
 				  (org-clones--get-headline-end)))
