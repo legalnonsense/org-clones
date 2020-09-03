@@ -252,13 +252,11 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
   to restore if the edit is abandoned.")
 (make-variable-buffer-local 'org-clones--restore-state)
 
-(setq org-clones--progress-cookie-re "\\[[[:digit:]]*/[[:digit:]]*\\]\\|\\[[[:digit:]]*\\%\\]")
-;; "Regexp for org progress cookies, e.g., [2/3] or [55%].")
+(defvar org-clones--progress-cookie-re "\\[[[:digit:]]*/[[:digit:]]*\\]\\|\\[[[:digit:]]*\\%\\]"
+  "Regexp for org progress cookies, e.g., [2/3] or [55%].")
 
-(setq org-clones--inline-code-result-re "{{{.*}}}")
-;; "Regexp for incline org-babel code results")
-
-
+(defvar org-clones--inline-code-result-re "{{{.*}}}"
+  "Regexp for incline org-babel code results")
 
 ;;;; Macros
 
@@ -294,14 +292,22 @@ move back."
 
 ;;;; Headline functions
 
+(defvar org-clones--headline-comment-re "\* COMMENT "
+  "Regexp for COMMENT prefix for org headlines.")
+
 (defun org-clones--goto-headline-start ()
   "Goto the first point of the headline, after the
 leading stars."
   (org-back-to-heading t)
-  (re-search-forward org-clones--org-headline-re (point-at-eol))
-  (when-let ((todo (org-get-todo-state)))
-    (re-search-forward todo (point-at-eol) t)
-    (forward-char 1))
+  ;;(re-search-forward org-clones--org-headline-re (point-at-eol))
+  (cond ((org-get-todo-state)
+	 (re-search-forward (org-get-todo-state) (point-at-eol) t)
+	 (forward-char 1))
+	((re-search-forward org-clones--headline-comment-re
+			    (point-at-eol) t)
+	 nil)
+	(t (re-search-forward org-clones--org-headline-re
+			      (point-at-eol) t)))
   (point))
 
 (defun org-clones--get-headline-start ()
@@ -309,20 +315,6 @@ leading stars."
 the leading stars."
   (save-excursion
     (org-clones--goto-headline-start)))
-
-
-;; Original
-;; (defun org-clones--goto-headline-end ()
-;;   "Goto the last point of the headline (i.e., before the
-;; tag line."
-;;   (org-back-to-heading t)
-;;   (if (re-search-forward
-;;        (concat ":" org-tag-re ":") (point-at-eol) t)
-;;       (goto-char (1- (match-beginning 0)))
-;;     (end-of-line))
-;;   (when (re-search-backward org-clones--not-whitespace-re)
-;;     (goto-char (match-end 0)))
-;;   (point))
 
 (defun org-clones--normalize-headline ()
   "Move any progress tracking cookie to the end of the headline."
@@ -340,7 +332,7 @@ the leading stars."
 	;; 	      'org-checkbox-statistics-todo)
 	;; 	  (eq (get-text-property 0 'face match)
 	;; 	      'org-checkbox-statistics-done))
-	;; 
+
 	(replace-match "")
 	(when (looking-at " ")
 	  (delete-char 1))
@@ -355,12 +347,14 @@ the leading stars."
   (when (re-search-backward org-clones--not-whitespace-re
 			    nil'no-error)
     (goto-char (match-end 0))))
-  
+
 (defun org-clones--goto-headline-end ()
   "Goto the last point of the headline (i.e., before the progress cookie
 and tag line."
   (org-back-to-heading t)
   (cond
+   ;; We assume that the headline is in this position:
+   ;; TODO headline babel-results progress-cookie tags
    ((re-search-forward org-clones--inline-code-result-re (point-at-eol) t)
     (goto-char (match-beginning 0))
     (org-clones--goto-previous-non-whitespace-char))
@@ -387,19 +381,22 @@ before the ellipsis."
        (<= (point) (org-clones--get-headline-end))
        (>= (point) (org-clones--get-headline-start))))
 
+;; (defun org-clones--get-headline-string ()
+;;   "Get the full text of a headline at point, excluding the
+;; leading stars, TODO state, and tags."
+;;   (save-excursion
+;;     (org-back-to-heading)
+;;     (string-trim
+;;      (replace-regexp-in-string
+;;       org-clones--progress-cookie-re "" 
+;;       (org-no-properties
+;;        (plist-get (cadr (org-element-at-point)) :raw-value))))))
 
-;; This should be changed to get the string using
-;; org-clones--get-headline-start and get-headline end
 (defun org-clones--get-headline-string ()
   "Get the full text of a headline at point, excluding the
 leading stars, TODO state, and tags."
-  (save-excursion
-    (org-back-to-heading)
-    (string-trim
-     (replace-regexp-in-string
-      org-clones--progress-cookie-re "" 
-      (org-no-properties
-       (plist-get (cadr (org-element-at-point)) :raw-value))))))
+  (buffer-substring-no-properties (org-clones--get-headline-start)
+				  (org-clones--get-headline-end)))
 
 (defun org-clones--delete-headline ()
   "Delete the headline of the heading at point."

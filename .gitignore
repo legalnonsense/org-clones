@@ -21,7 +21,6 @@ org-clones-edit.el
 /test3.org
 /test4.org
 /org-clones-scratch.el
-<<<<<<< HEAD
 test.org
 test1.org
 /#speed-test-sample.org#
@@ -34,9 +33,6 @@ test1.org
 /temp.el
 /test666.org
 /test999.org
-=======
-/TEST/
->>>>>>> origin/master
 /#clones.el#
 /#test5.org#
 /test5.org
