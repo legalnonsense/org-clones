@@ -258,7 +258,7 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 (defvar org-clones--inline-code-result-re "{{{.*}}}"
   "Regexp for incline org-babel code results")
 
-(defvar org-clones--headline-comment-re " COMMENT "
+(defvar org-clones--headline-comment-re (concat " " org-comment-string " ")
   "Regexp for COMMENT prefix for org headlines.")
 
 (defvar org-clones--priority-cookie-re "\\[#[A|B|C]\\] "
