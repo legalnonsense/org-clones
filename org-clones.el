@@ -978,9 +978,13 @@ of the node at point by pressing `org-clones-jump-to-next-clone-shortcut'."
 	(org-clones--initialize-transient-overlay)
 	(org-clones--reset-all-clone-effects-in-buffer)
 	(org-clones--initialize-overlays-in-buffer)
-	(org-clones--cursor-sensor-mode-check))
+	(org-clones--cursor-sensor-mode-check)
+	(add-hook 'org-capture-after-finalize-hook
+		  #'org-clones--sync-clones nil t))
     (org-clones--remove-all-clone-effects-in-buffer)
-    (org-clones--cursor-sensor-mode-check)))
+    (org-clones--cursor-sensor-mode-check)
+    (remove-hook 'org-capture-after-finalize-hook
+		 #'org-clones--sync-clones t)))
 
 ;;;###autoload 
 (defun org-clones-delete-this-clone ()
