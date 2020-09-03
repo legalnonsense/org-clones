@@ -255,6 +255,11 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 (setq org-clones--progress-cookie-re "\\[[[:digit:]]*/[[:digit:]]*\\]\\|\\[[[:digit:]]*\\%\\]")
 ;; "Regexp for org progress cookies, e.g., [2/3] or [55%].")
 
+(setq org-clones--inline-code-result-re "{{{.*}}}")
+;; "Regexp for incline org-babel code results")
+
+
+
 ;;;; Macros
 
 (defmacro org-clones--iterate-over-clones (&rest body)
@@ -344,17 +349,28 @@ the leading stars."
       (cl-loop for cookie in cookies
 	       do (insert " " cookie)))))
 
+(defun org-clones--goto-previous-non-whitespace-char ()
+  "Move the point back to the nearest non-whitespace character in
+ the buffer."
+  (when (re-search-backward org-clones--not-whitespace-re
+			    nil'no-error)
+    (goto-char (match-end 0))))
+  
 (defun org-clones--goto-headline-end ()
   "Goto the last point of the headline (i.e., before the progress cookie
 and tag line."
   (org-back-to-heading t)
   (cond
+   ((re-search-forward org-clones--inline-code-result-re (point-at-eol) t)
+    (goto-char (match-beginning 0))
+    (org-clones--goto-previous-non-whitespace-char))
    ((re-search-forward org-clones--progress-cookie-re (point-at-eol) t)
     (goto-char (match-beginning 0))
-    (backward-char))
+    (org-clones--goto-previous-non-whitespace-char))
    ((re-search-forward
      (concat ":" org-tag-re ":") (point-at-eol) t)
-    (goto-char (1- (match-beginning 0))))
+    (goto-char (match-beginning 0))
+    (org-clones--goto-previous-non-whitespace-char))
    (t (end-of-line)))
   (when (re-search-backward org-clones--not-whitespace-re)
     (goto-char (match-end 0)))
@@ -371,6 +387,9 @@ before the ellipsis."
        (<= (point) (org-clones--get-headline-end))
        (>= (point) (org-clones--get-headline-start))))
 
+
+;; This should be changed to get the string using
+;; org-clones--get-headline-start and get-headline end
 (defun org-clones--get-headline-string ()
   "Get the full text of a headline at point, excluding the
 leading stars, TODO state, and tags."
