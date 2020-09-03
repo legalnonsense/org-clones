@@ -261,8 +261,8 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 (defvar org-clones--headline-comment-re " COMMENT "
   "Regexp for COMMENT prefix for org headlines.")
 
-(setq org-clones--priority-cookie-re "\\[#[A|B|C]\\]")
-;;      "Regexp for priority cookies in org headlines.")
+(defvar org-clones--priority-cookie-re "\\[#[A|B|C]\\]"
+  "Regexp for priority cookies in org headlines.")
 
 ;;;; Macros
 
