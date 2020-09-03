@@ -238,19 +238,16 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
   '(face org-clones-clone)
   "Overlay properties placed at the headline and body of each node.")
 
-(defvar org-clones--previous-header-line nil
+(defvar-local org-clones--previous-header-line nil
   "Temporary storage for the value of `header-line-format'.")
-(make-variable-buffer-local 'org-clones--previous-header-line)
 
-(defvar org-clones--transient-overlay nil
+(defvar-local org-clones--transient-overlay nil
   "Temporary holder for the transient headline 
   or body overlay.")
-(make-variable-buffer-local 'org-clones--transient-overlay)
 
-(defvar org-clones--restore-state nil
+(defvar-local org-clones--restore-state nil
   "When editing a clone, save the current headline and body
   to restore if the edit is abandoned.")
-(make-variable-buffer-local 'org-clones--restore-state)
 
 (defvar org-clones--progress-cookie-re "\\[[[:digit:]]*/[[:digit:]]*\\]\\|\\[[[:digit:]]*\\%\\]"
   "Regexp for org progress cookies, e.g., [2/3] or [55%].")
