@@ -21,11 +21,8 @@
 
     ;; COMMENT, progress cookie, tags, and stray colons
     (org-clones-ert--replace-buffer-text "*** COMMENT [55%] Parent: node :tags:")
-    ;; This will return a space because the progress cookie hasn't been moved.
+    ;;(org-clones--normalize-headline)
     (should (string= (org-clones--get-headline-string) " "))
-
-    (org-clones--normalize-headline)
-    (should (string= (org-clones--get-headline-string) "Parent: node"))
 
     (org-clones-ert--replace-buffer-text "*** COMMENT [55%] Parent :node :tags:")
     (org-clones--normalize-headline)
@@ -49,6 +46,11 @@
     (org-clones--normalize-headline)
     (should (string= (org-clones--get-headline-string)
 		     "Parent node"))
+
+    (org-clones-ert--replace-buffer-text "* TODO [#A] Parent COMMENT [50%] node  :tags2:")
+    (org-clones--normalize-headline)
+    (should (string= (org-clones--get-headline-string)
+		     "Parent COMMENT node"))
 
     (org-clones-ert--replace-buffer-text "*** [#A] COMMENT [55%] Parent: [4/5] node :tags:")
     (org-clones--normalize-headline)
