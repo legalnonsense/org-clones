@@ -1,3 +1,5 @@
+;;; org-clones-ert.el --- Testing  -*- lexical-binding: t; -*-
+
 (defun org-clones-ert--replace-buffer-text (text)
   (erase-buffer)
   (insert text)
@@ -43,7 +45,7 @@
     (should (string= (org-clones--get-headline-string)
 		     "Parent: node"))
 
-    (org-clones-ert--replace-buffer-text "* TODO [#A] COMMENT Parent node [0/0] :tags2:")
+    (org-clones-ert--replace-buffer-text "* TODO [#A] COMMENT Parent [50%] node  :tags2:")
     (org-clones--normalize-headline)
     (should (string= (org-clones--get-headline-string)
 		     "Parent node"))
