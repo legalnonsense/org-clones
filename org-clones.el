@@ -258,7 +258,7 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 (defvar org-clones--inline-code-result-re "{{{.*}}}"
   "Regexp for incline org-babel code results")
 
-(defvar org-clones--headline-comment-re "\\* COMMENT "
+(defvar org-clones--headline-comment-re " COMMENT "
   "Regexp for COMMENT prefix for org headlines.")
 
 (setq org-clones--priority-cookie-re "\\[#[A|B|C]\\]")
@@ -312,17 +312,18 @@ move back."
 leading stars, TODO state, or COMMENT."
   (org-back-to-heading t)
   ;; This assumes the headline has the order:
-  ;; stars TODO/COMMENT PRIORITY HEADLINE
-  (cond ((re-search-forward org-clones--priority-cookie-re (point-at-eol) t)
-	 nil)
-	((org-get-todo-state)
-	 (re-search-forward (org-get-todo-state) (point-at-eol) t)
-	 (forward-char 1))
-	((re-search-forward org-clones--headline-comment-re
-			    (point-at-eol) t)
-	 nil)
-	(t (re-search-forward org-clones--org-headline-re
-			      (point-at-eol) t)))
+  ;; stars TODO PRIORITY COMMENT HEADLINE TAGS
+  (cond
+   ((re-search-forward org-clones--headline-comment-re
+		       (point-at-eol) t)
+    nil)
+   ((re-search-forward org-clones--priority-cookie-re (point-at-eol) t)
+    nil)
+   ((org-get-todo-state)
+    (re-search-forward (org-get-todo-state) (point-at-eol) t)
+    (forward-char 1))
+   (t (re-search-forward org-clones--org-headline-re
+			 (point-at-eol) t)))
   (point))
 
 (defun org-clones--get-headline-start ()
