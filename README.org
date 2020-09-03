@@ -125,6 +125,15 @@ Most of this is laid out above, but just in case:
 | =org-clones-create-clone-dwim=        | Create a clone from the stored marker if one is stored; otherwise, prompt the user for the source node |
 
 * How it works
+** Defining a headline
+Org-clones automatically moves and progress cookie to the and of a headline, before the tags. It also assumes that the {{{results}}} of an inline source block will appear at the end of a heading, but before the tags and before any progress cookies. With those adjustment, the format of a headline is:
+
+Todo Priority-cookie Comment *Headline-text* Inline-results Progress-cookie Tags
+
+The only thing org-clones will sync is the headline-text. 
+
+** Functionality 
+- 
 - Clones are tracked via the Orgmode property =:ORG-CLONES:= which contains a list of IDs which correspond to other cloned nodes. 
 - A cursor-sensor-function property is placed on each headline and body of each node. 
 - When the cursor enters that field, =org-clones= places a transient overlay over the field to alert the user that they are on a cloned node. 
