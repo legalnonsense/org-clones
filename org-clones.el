@@ -297,7 +297,7 @@ move back."
 
 (defun org-clones--goto-headline-start ()
   "Goto the first point of the headline, after the
-leading stars."
+leading stars, TODO state, or COMMENT."
   (org-back-to-heading t)
   ;;(re-search-forward org-clones--org-headline-re (point-at-eol))
   (cond ((org-get-todo-state)
