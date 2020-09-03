@@ -258,6 +258,9 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 (defvar org-clones--inline-code-result-re "{{{.*}}}"
   "Regexp for incline org-babel code results")
 
+(defvar org-clones--headline-comment-re "\\* COMMENT "
+  "Regexp for COMMENT prefix for org headlines.")
+
 ;;;; Macros
 
 (defmacro org-clones--iterate-over-clones (&rest body)
@@ -290,10 +293,16 @@ move back."
        (org-show-entry)
        ,@body)))
 
-;;;; Headline functions
+;;;; Cursor movement functions
 
-(defvar org-clones--headline-comment-re "\* COMMENT "
-  "Regexp for COMMENT prefix for org headlines.")
+(defun org-clones--goto-previous-non-whitespace-char ()
+  "Move the point back to the nearest non-whitespace character in
+ the buffer."
+  (when (re-search-backward org-clones--not-whitespace-re
+			    nil'no-error)
+    (goto-char (match-end 0))))
+
+;;;; Headline functions
 
 (defun org-clones--goto-headline-start ()
   "Goto the first point of the headline, after the
@@ -325,6 +334,7 @@ the leading stars."
 				(point-at-eol)
 				'no-error)
 	(setq match (match-string 0))
+
 	;; Can't use this because the users might sync
 	;; before org applies these text properties.
 	;;
@@ -340,13 +350,6 @@ the leading stars."
       (org-clones--goto-headline-end)
       (cl-loop for cookie in cookies
 	       do (insert " " cookie)))))
-
-(defun org-clones--goto-previous-non-whitespace-char ()
-  "Move the point back to the nearest non-whitespace character in
- the buffer."
-  (when (re-search-backward org-clones--not-whitespace-re
-			    nil'no-error)
-    (goto-char (match-end 0))))
 
 (defun org-clones--goto-headline-end ()
   "Goto the last point of the headline (i.e., before the progress cookie
