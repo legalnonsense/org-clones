@@ -304,12 +304,6 @@ move back."
 
 ;;;; Headline functions
 
-(pcase nil
-  ((and (pred numberp)
-	(pred (< 4)))
-   'a)
-  (_ 'b))
-
 (defun org-clones--goto-headline-start ()
   "Goto the first point of the headline, after the
 leading stars, TODO state, or COMMENT."
@@ -324,36 +318,48 @@ leading stars, TODO state, or COMMENT."
 				   (pred (< new-point)))
 			      (setq new-point candidate)))))
 
-      ;; Find the end of any COMMENT indicator...
-      (when (org-in-commented-heading-p)
-	(new-point-p
-	 (re-search-forward org-clones--headline-comment-re
-			    (point-at-eol) t))
-	(org-back-to-heading))
+      ;; Since these fuckers can be in any order, I am just going to
+      ;; test them.  This is already fixed by normalizing the headline
+      ;; so they are in a predictable order, but that is not stable yet.
+      (mapc #'new-point-p `(,(org-clones--goto-after-todo-state)
+			    ,(org-clones--goto-after-priority-cookie)
+			    ,(org-clones--goto-after-leading-stars)
+			    ,(org-clones--goto-after-comment-indicator)))
+      (if (= new-point 0)
+	  (error "No headline detected.")
+	(goto-char new-point)))))
 
-      ;; Find the end of the TODO state...
-      (when (org-get-todo-state)
-	(new-point-p
-	 (when (re-search-forward (org-get-todo-state) (point-at-eol) t)
-	   (forward-char 1)
-	   (point)))
-	(org-back-to-heading))
+(defun org-clones--goto-after-todo ()
+  "Go to the next non-whitespace point after the TODO state. 
+Return nil if there is no point."
+  (org-back-to-heading)
+  (when (org-get-todo-state)
+    (when (re-search-forward (org-get-todo-state) (point-at-eol) t)
+      (forward-char 1)
+      (point))))
 
-      ;; Find the end of the priority cookie...
-      (when (re-search-forward org-clones--priority-cookie-re (point-at-eol) t)
-	(new-point-p
-	 (point))
-	(org-back-to-heading))
+(defun org-clones--goto-after-priority-cookie ()
+  "Go to the next non-whitespace point after the priority cookie.  
+Return nil if there is no point."
+  (org-back-to-heading)
+  (when (re-search-forward org-clones--priority-cookie-re (point-at-eol) t)
+    (point)))
 
-      ;; Find the first text after the leading starts...
-      (new-point-p
-       (re-search-forward org-clones--org-headline-re
-			  (point-at-eol) t)))
+(defun org-clones--goto-after-comment-indicator ()
+  "Go to the next non-whitespace point after the comment indicator.
+Return nil if there is no point."
+  (org-back-to-heading)
+  (when (org-in-commented-heading-p)
+    (re-search-forward org-clones--headline-comment-re
+		       (point-at-eol) t)))
 
-    ;; ...go to the farthest one. 
-    (if (= new-point 0)
-	(error "No headline detected.")
-      (goto-char new-point))))
+(defun org-clones--goto-after-leading-stars ()
+  "Go to the next non-whitespace point after the comment indicator.
+Return nil if there is no point."
+  (org-back-to-heading)
+  (re-search-forward org-clones--org-headline-re
+		     (point-at-eol) t))
+
 
 (defun org-clones--get-headline-start ()
   "Get the point at the start of the headling, after
@@ -363,9 +369,23 @@ the leading stars."
 
 (defun org-clones--normalize-headline ()
   "Move any progress tracking cookie to the end of the headline."
-  (org-clones--fix-progress-cookie-location))
+  (org-clones--fix-progress-cookie-location)
+  (org-clones--fix-priority-cookie-location))
 
+(defun org-clones--fix-priority-cookie-location ()
+  (org-back-to-heading)
+  (let (match)
+    (when (re-search-forward org-clones--priority-cookie-re
+			     nil (point-at-eol))
+      (setq match (match-string 1))
+      (delete-region (match-beginning 1) (match-end 1))
 
+      ;; If there is a TODO, go after it.
+      (unless (org-clones--goto-after-todo)
+	;; Otherwise, the priority comes first
+	(org-clones--goto-after-leading-stars))
+      (insert match)
+      (org-back-to-heading))))
 
 (defun org-clones--fix-progress-cookie-location ()
   ;; Move the progress cookies to the end of the headline
@@ -390,7 +410,7 @@ the leading stars."
       (push match cookies))
     (org-clones--goto-headline-end)
     (cl-loop for cookie in cookies
-	     do (insert " " cookie)))))
+	     do (insert " " cookie))))
 
 (defun org-clones--goto-headline-end ()
   "Goto the last point of the headline (i.e., before the progress cookie
