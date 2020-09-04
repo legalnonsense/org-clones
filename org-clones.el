@@ -258,8 +258,8 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 (defvar org-clones--headline-comment-re (concat " " org-comment-string " ")
   "Regexp for COMMENT prefix for org headlines.")
 
-(defvar org-clones--priority-cookie-re "\\[#[A|B|C]\\] "
-  "Regexp for priority cookies in org headlines.")
+(defvar org-clones--priority-cookie-re ".*?\\(\\[#\\([A-Z0-9]\\)\\] ?\\)"
+  "Regexp for priority cookies for org headlines.")
 
 ;;;; Macros
 
@@ -304,27 +304,56 @@ move back."
 
 ;;;; Headline functions
 
-
+(pcase nil
+  ((and (pred numberp)
+	(pred (< 4)))
+   'a)
+  (_ 'b))
 
 (defun org-clones--goto-headline-start ()
   "Goto the first point of the headline, after the
 leading stars, TODO state, or COMMENT."
-  (org-back-to-heading t)
-  ;; This assumes the headline has the order:
-  ;; stars TODO PRIORITY COMMENT HEADLINE TAGS
-  (cond ((org-in-commented-heading-p)
-	 (re-search-forward org-clones--headline-comment-re (point-at-eol) t))
-	((re-search-forward org-clones--priority-cookie-re
-			    (point-at-eol) t)
-	 nil)
-	((org-get-todo-state)
-	 (re-search-forward (org-get-todo-state) (point-at-eol) t)
-	 (forward-char 1))
-	(t
-	 (org-back-to-heading)
-	 (re-search-forward org-clones--org-headline-re
-			    (point-at-eol) t)))
-  (point))
+  (org-back-to-heading)
+  ;; Apparently priority cookies can be anywhere in the headline, so
+  ;; I am just going to do this by comparing the end results of the
+  ;; appropriate regexp searches. 
+  (let ((new-point 0)) ;; If it stays 0, thow an error later.
+    (cl-flet ((new-point-p (candidate)  
+			   (pcase candidate
+			     ((and (pred numberp)
+				   (pred (< new-point)))
+			      (setq new-point candidate)))))
+
+      ;; Find the end of any COMMENT indicator...
+      (when (org-in-commented-heading-p)
+	(new-point-p
+	 (re-search-forward org-clones--headline-comment-re
+			    (point-at-eol) t))
+	(org-back-to-heading))
+
+      ;; Find the end of the TODO state...
+      (when (org-get-todo-state)
+	(new-point-p
+	 (when (re-search-forward (org-get-todo-state) (point-at-eol) t)
+	   (forward-char 1)
+	   (point)))
+	(org-back-to-heading))
+
+      ;; Find the end of the priority cookie...
+      (when (re-search-forward org-clones--priority-cookie-re (point-at-eol) t)
+	(new-point-p
+	 (point))
+	(org-back-to-heading))
+
+      ;; Find the first text after the leading starts...
+      (new-point-p
+       (re-search-forward org-clones--org-headline-re
+			  (point-at-eol) t)))
+
+    ;; ...go to the farthest one. 
+    (if (= new-point 0)
+	(error "No headline detected.")
+      (goto-char new-point))))
 
 (defun org-clones--get-headline-start ()
   "Get the point at the start of the headling, after
@@ -334,29 +363,34 @@ the leading stars."
 
 (defun org-clones--normalize-headline ()
   "Move any progress tracking cookie to the end of the headline."
-  (save-excursion
-    (org-back-to-heading)
-    (let (match cookies)
-      (while (re-search-forward org-clones--progress-cookie-re
-				(point-at-eol)
-				'no-error)
-	(setq match (match-string 0))
+  (org-clones--fix-progress-cookie-location))
 
-	;; Can't use this because the users might sync
-	;; before org applies these text properties.
-	;;
-	;; (when (or (eq (get-text-property 0 'face match)
-	;; 	      'org-checkbox-statistics-todo)
-	;; 	  (eq (get-text-property 0 'face match)
-	;; 	      'org-checkbox-statistics-done))
 
-	(replace-match "")
-	(when (looking-at " ")
-	  (delete-char 1))
-	(push match cookies))
-      (org-clones--goto-headline-end)
-      (cl-loop for cookie in cookies
-	       do (insert " " cookie)))))
+
+(defun org-clones--fix-progress-cookie-location ()
+  ;; Move the progress cookies to the end of the headline
+  (org-back-to-heading)
+  (let (match cookies)
+    (while (re-search-forward org-clones--progress-cookie-re
+			      (point-at-eol)
+			      'no-error)
+      (setq match (match-string 0))
+
+      ;; Can't use this because the users might sync
+      ;; before org applies these text properties.
+      ;;
+      ;; (when (or (eq (get-text-property 0 'face match)
+      ;; 	      'org-checkbox-statistics-todo)
+      ;; 	  (eq (get-text-property 0 'face match)
+      ;; 	      'org-checkbox-statistics-done))
+
+      (replace-match "")
+      (when (looking-at " ")
+	(delete-char 1))
+      (push match cookies))
+    (org-clones--goto-headline-end)
+    (cl-loop for cookie in cookies
+	     do (insert " " cookie)))))
 
 (defun org-clones--goto-headline-end ()
   "Goto the last point of the headline (i.e., before the progress cookie
