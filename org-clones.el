@@ -182,12 +182,6 @@ Must be a string other than whitespace."
 (defvar org-clones--temp-marker nil
   "Temporary storage for a marker for clone creation.")
 
-(defvar org-clones--org-headline-re org-outline-regexp
-  "Org headline regexp.")
-
-(defvar org-clones--not-whitespace-re "[^[:space:]]"
-  "Regexp matching any non-whitespace charcter.")
-
 (defvar org-clones--clone-cycle-list nil
   "Temporary storage when cycling through clones.")
 
@@ -249,6 +243,12 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
   "When editing a clone, save the current headline and body
   to restore if the edit is abandoned.")
 
+(defvar org-clones--org-headline-re org-outline-regexp
+  "Org headline regexp.")
+
+(defvar org-clones--not-whitespace-re "[^[:space:]]"
+  "Regexp matching any non-whitespace charcter.")
+
 (defvar org-clones--progress-cookie-re "\\[[[:digit:]]*/[[:digit:]]*\\]\\|\\[[[:digit:]]*\\%\\]"
   "Regexp for org progress cookies, e.g., [2/3] or [55%].")
 
@@ -260,6 +260,9 @@ Note: 'face does not work with org-mode. Use 'font-lock-face.
 
 (defvar org-clones--priority-cookie-re ".*?\\(\\[#\\([A-Z0-9]\\)\\] ?\\)"
   "Regexp for priority cookies for org headlines.")
+
+(defvar org-clones--tag-re (concat ":" org-tag-re ":")
+  "Regexp for headline tags.")
 
 ;;;; Macros
 
@@ -319,8 +322,9 @@ leading stars, TODO state, or COMMENT."
 			      (setq new-point candidate)))))
 
       ;; Since these fuckers can be in any order, I am just going to
-      ;; test them.  This is already fixed by normalizing the headline
-      ;; so they are in a predictable order, but that is not stable yet.
+      ;; test each of them.  This is also already fixed by normalizing
+      ;; the headline so they are in a predictable order, but that is
+      ;; not stable yet.
       (mapc #'new-point-p `(,(org-clones--goto-after-todo-state)
 			    ,(org-clones--goto-after-priority-cookie)
 			    ,(org-clones--goto-after-leading-stars)
@@ -360,7 +364,6 @@ Return nil if there is no point."
   (re-search-forward org-clones--org-headline-re
 		     (point-at-eol) t))
 
-
 (defun org-clones--get-headline-start ()
   "Get the point at the start of the headling, after
 the leading stars."
@@ -373,6 +376,9 @@ the leading stars."
   (org-clones--fix-priority-cookie-location))
 
 (defun org-clones--fix-priority-cookie-location ()
+  "Move any priority cookie in the headline to appear 
+after the TODO keyword or at the start of the headline 
+if there is no TODO keyword."
   (org-back-to-heading)
   (let (match)
     (when (re-search-forward org-clones--priority-cookie-re
@@ -395,44 +401,37 @@ the leading stars."
 			      (point-at-eol)
 			      'no-error)
       (setq match (match-string 0))
-
-      ;; Can't use this because the users might sync
-      ;; before org applies these text properties.
-      ;;
-      ;; (when (or (eq (get-text-property 0 'face match)
-      ;; 	      'org-checkbox-statistics-todo)
-      ;; 	  (eq (get-text-property 0 'face match)
-      ;; 	      'org-checkbox-statistics-done))
-
       (replace-match "")
       (when (looking-at " ")
 	(delete-char 1))
       (push match cookies))
-    (org-clones--goto-headline-end)
-    (cl-loop for cookie in cookies
+    (unless 
+	(re-search-forward org-clones--tag-re (point-at-eol) t)
+      (org-end-of-line))
+    (cl-loop for cookie in (reverse cookies)
 	     do (insert " " cookie))))
 
-(defun org-clones--goto-headline-end ()
-  "Goto the last point of the headline (i.e., before the progress cookie
+  (defun org-clones--goto-headline-end ()
+    "Goto the last point of the headline (i.e., before the progress cookie
 and tag line."
-  (org-back-to-heading t)
-  (cond
-   ;; We assume that the headline is in this position:
-   ;; TODO headline babel-results progress-cookie tags
-   ((re-search-forward org-clones--inline-code-result-re (point-at-eol) t)
-    (goto-char (match-beginning 0))
-    (org-clones--goto-previous-non-whitespace-char))
-   ((re-search-forward org-clones--progress-cookie-re (point-at-eol) t)
-    (goto-char (match-beginning 0))
-    (org-clones--goto-previous-non-whitespace-char))
-   ((re-search-forward
-     (concat ":" org-tag-re ":") (point-at-eol) t)
-    (goto-char (match-beginning 0))
-    (org-clones--goto-previous-non-whitespace-char))
-   (t (end-of-line)))
-  (when (re-search-backward org-clones--not-whitespace-re)
-    (goto-char (match-end 0)))
-  (point))
+    (org-back-to-heading t)
+    (cond
+     ;; We assume that the headline is in this position:
+     ;; TODO headline babel-results progress-cookie tags
+     ((re-search-forward org-clones--inline-code-result-re (point-at-eol) t)
+      (goto-char (match-beginning 0))
+      (org-clones--goto-previous-non-whitespace-char))
+     ((re-search-forward org-clones--progress-cookie-re (point-at-eol) t)
+      (goto-char (match-beginning 0))
+      (org-clones--goto-previous-non-whitespace-char))
+     ((re-search-forward
+       org-clones--tag-re (point-at-eol) t)
+      (goto-char (match-beginning 0))
+      (org-clones--goto-previous-non-whitespace-char))
+     (t (end-of-line)))
+    (when (re-search-backward org-clones--not-whitespace-re)
+      (goto-char (match-end 0)))
+    (point))
 
 (defun org-clones--get-headline-end ()
   "Get the point at the end of the headline, but
@@ -468,18 +467,22 @@ before the ellipsis."
 
 (defun org-clones--replace-headline (headline)
   "Replace the headline text at point with HEADLINE."
+  (when (string-match "\n" headline)
+    (error "You can't have a newline in a headline string."))
   (let ((inhibit-read-only t))
     (save-excursion
+      (org-clones--normalize-headline)
       (org-clones--delete-headline)
       (org-clones--goto-headline-start)
       (insert headline)
-      (org--align-tags-here org-tags-column))))
+      (org-align-tags))))
 
 ;;;; Body functions 
 
 (defun org-clones--node-body-p ()
   "Does this node have a body (i.e., a 'section' in org-element
 parlance)?"
+  (org-back-to-heading)
   (org-clones--parse-body))
 
 (defun org-clones--goto-body-end ()
@@ -502,7 +505,7 @@ the point after the planning line, drawers immediately following
 the planning line, and any closing note."
   (org-end-of-meta-data t)
   (let ((section (org-clones--get-section-elements)))
-    ;; This is a ridiculous way to check if there is a closing note!
+    ;; This is a ridiculous way to check if there is a note!
     (if (and section
 	     (eq (caar section) 'plain-list)
 	     (eq (car (caddar section)) 'item)
@@ -511,8 +514,8 @@ the planning line, and any closing note."
 	     ;; the prefix of the closing note, so using "CLOSING NOTE "
 	     ;; and assuming it is static.
 	     (string= (caddr (caddr (caddar section))) "CLOSING NOTE "))
-	(goto-char (plist-get (cadar section) :end)))
-    (point)))
+	(goto-char (plist-get (cadar section) :end))
+      (point))))
 
 (defun org-clones--get-body-start ()
   "Get the start point of the body of the current node."
@@ -1112,6 +1115,7 @@ node's id from any nodes which contain it."
 (defun org-clones-create-clone-dwim ()
   "Create a clone from the stored marker if it exists;
 otherwise, prompt for the source node."
+  (interactive)
   (org-clones-create-clone org-clones--temp-marker)
   (when org-clones--temp-marker
     (setq org-clones--temp-marker nil)))
