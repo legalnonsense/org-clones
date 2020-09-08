@@ -185,7 +185,7 @@ Must be a string other than whitespace."
 (defvar org-clones--clone-cycle-list nil
   "Temporary storage when cycling through clones.")
 
-((defvar org-clones--clone-cycle-buffer-list nil
+(defvar org-clones--clone-cycle-buffer-list nil
   "Temporary storage for the buffer name and `header-line-format'
   list when cycling through clones.")
 
