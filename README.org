@@ -49,8 +49,8 @@ In the alternative, this use-package declaration includes all customizable varia
     ;; Note: `org-clones-mode' will only activate
     ;; `cursor-sensor-mode' if there are cursor-sensor-properties
     ;; in the buffer.  Therefore, you can safely add `org-clones-mode'
-    ;; to `orgmode-hook' even if you don't plan to use it in every file. 
-    (orgmode . org-clones-mode)
+    ;; to `org-mode-hook' even if you don't plan to use it in every file. 
+    (org-mode . org-clones-mode)
     :custom
     (org-clones-commit-edit-shortcut "C-c C-c")
     (org-clones-abort-edit-shortcut  "C-c C-k")
