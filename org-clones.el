@@ -333,7 +333,7 @@ leading stars, TODO state, or COMMENT."
 	  (error "No headline detected.")
 	(goto-char new-point)))))
 
-(defun org-clones--goto-after-todo ()
+(defun org-clones--goto-after-todo-state ()
   "Go to the next non-whitespace point after the TODO state. 
 Return nil if there is no point."
   (org-back-to-heading)
@@ -358,7 +358,7 @@ Return nil if there is no point."
 		       (point-at-eol) t)))
 
 (defun org-clones--goto-after-leading-stars ()
-  "Go to the next non-whitespace point after the comment indicator.
+  "Go to the next non-whitespace point after the leading stars.
 Return nil if there is no point."
   (org-back-to-heading)
   (re-search-forward org-clones--org-headline-re

@@ -1,5 +1,6 @@
 * Org-clones 
-This package is still being developed and tested. Feedback and bug reports are welcome. Use at your own risk. 
++This package is still being developed and tested. Feedback and bug reports are welcome. Use at your own risk.+
+This package is abandoned. The ideas are being translated to a new package. I am keeping this up in the event anyone finds the approach used here interesting. Otherwise, please don’t plan to use this. 
 
 Clone Orgmode headings so they appear in multiple locations, and sync edits between clones.
 
